@@ -124,9 +124,8 @@ AI was utilized as a critical friend, seeking feedback on performance metrics an
 
 ## AI Prompt used
 
-```
 Critically review this Go starter template to determine whether it is suitable for a real-world production application.
-
+```
 Evaluate the following aspects in depth:
     - Architectural philosophy and design principles
     - Code organization, readability, and idiomatic Go practices
