@@ -118,36 +118,36 @@ HSTS:
 
 ## Acknowledgements
 
-AI was utilized as a critical friend, seeking feedback on performance metrics and critical reviews of my implementation to identify potential bottlenecks. The use of these models in no way completely replaces the author's imagination and creativity in crafting this solution; rather, they enhanced the ability to proactively spot issues and co-create responsibly. Below are the generative AI models consulted during the development of this solution and the prompt used:
+AI was utilized as a critical friend, seeking feedback on performance metrics and critical reviews of my implementation to identify potential bottlenecks. The use of these models in no way completely replaces the author's imagination and creativity in crafting this solution; rather, they enhanced the author's ability to proactively spot issues and co-create responsibly. Below are the generative AI models consulted during the development of this solution and the prompt used:
 - GPT-5.2 
 - Claude Opus 4.5
 
-## AI Prompt used
+## AI Prompt Used
 
-Critically review this Go starter template to determine whether it is suitable for a real-world production application.
 ```
+Critically review this Go starter template to determine whether it is suitable for a real-world production application.
 Evaluate the following aspects in depth:
-    - Architectural philosophy and design principles
-    - Code organization, readability, and idiomatic Go practices
-    - Scalability (codebase growth, team scaling, and system load)
-    - Maintainability and long-term evolution of the project
-    - Testing strategy and testability
-    - Error handling and resilience patterns
-    - Configuration and environment management
-    - Observability (logging, metrics, tracing)
-    - Security considerations and potential risks
-    - Dependency and package management
-    - Performance and concurrency design
-    - Deployment and production-readiness (CI/CD, containerization, cloud readiness)
-    - 12-factor App principles
+- Architectural philosophy and design principles
+- Code organization, readability, and idiomatic Go practices
+- Scalability (codebase growth, team scaling, and system load)
+- Maintainability and long-term evolution of the project
+- Testing strategy and testability
+- Error handling and resilience patterns
+- Configuration and environment management
+- Observability (logging, metrics, tracing)
+- Security considerations and potential risks
+- Dependency and package management
+- Performance and concurrency design
+- Deployment and production-readiness (CI/CD, containerization, cloud readiness)
+- 12-factor App principles
 
 Also identify:
-    - Strengths of the template
-    - Weaknesses and architectural risks
-    - Missing production-critical components
-    - Areas that may become problematic as the project scales
-    - Concrete improvements and best-practice recommendations
-    - Provide a clear, structured, and brutally honest assessment with actionable suggestions
+- Strengths of the template
+- Weaknesses and architectural risks
+- Missing production-critical components
+- Areas that may become problematic as the project scales
+- Concrete improvements and best-practice recommendations
+- Provide a clear, structured, and brutally honest assessment with actionable suggestions
 ```
 
 
