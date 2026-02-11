@@ -1,0 +1,29 @@
+.git
+.gitignore
+.github
+.DS_Store
+
+# Build artifacts
+bin
+build
+dist
+docs
+
+# Developer Guides and documentation
+docs
+README.md
+
+# Logs and caches
+*.log
+**/.cache
+
+# IDE
+.idea
+.vscode
+
+# Go specific
+go.work
+go.work.sum
+coverage.*
+*.out
+*.test

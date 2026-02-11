@@ -1,0 +1,135 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: dev-stage
+    ports:
+      - "${APP_PORT}:${APP_PORT}"
+    volumes:
+      - ./:/app  # Development volume mount for hot reload
+    env_file:
+      - .env
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      - APP_ENV=development
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:${RABBITMQ_PORT}/
+      - AWS_SQS_ENDPOINT_URL=http://localstack:${AWS_SQS_LOCAL_GATEWAY_PORT}
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:${APP_PORT}/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - v2-backend-network
+    restart: unless-stopped
+    command: ["--", "--auto-migrate"]  # pass args through to the server
+
+## Cache Service
+  redis:
+    image: redis:8.4-alpine
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT}:${REDIS_PORT}"
+    volumes:
+      - redis-data:/data
+    env_file:
+      - .env
+    environment:
+      - REDIS_HOST=${REDIS_HOST}
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    networks:
+      - v2-backend-network
+
+#### Database Service
+  postgres:
+    image: postgres:18.1-alpine
+    restart: unless-stopped
+    ports:
+      - "${POSTGRES_PORT}:${POSTGRES_PORT}"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB_NAME}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - v2-backend-network
+
+### Localstack for AWS Queue Service Simulation
+  localstack:
+    container_name: localstack
+    image: localstack/localstack:latest
+    ports:
+      - "${AWS_SQS_LOCAL_GATEWAY_PORT}:${AWS_SQS_LOCAL_GATEWAY_PORT}"
+      - "${AWS_SQS_EXTERNAL_GATEWAY_PORT_RANGE_START}-${AWS_SQS_EXTERNAL_GATEWAY_PORT_RANGE_END}:${AWS_SQS_EXTERNAL_GATEWAY_PORT_RANGE_START}-${AWS_SQS_EXTERNAL_GATEWAY_PORT_RANGE_END}"
+    environment:
+      - SERVICES=sqs
+      - DEBUG=${DEBUG:-0}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_SQS_ENDPOINT_URL=${AWS_SQS_ENDPOINT_URL}
+    volumes:
+      - "./scripts/localstack-init:/etc/localstack/init/ready.d"
+      - "localstack-data:/var/lib/localstack"
+    networks:
+      - v2-backend-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:${AWS_SQS_LOCAL_GATEWAY_PORT}/_localstack/health && awslocal sqs list-queues"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+### RabbitMQ Service
+  rabbitmq:
+    image: rabbitmq:4.2-management-alpine
+    container_name: rabbitmq
+    ports:
+      - "${RABBITMQ_PORT}:${RABBITMQ_PORT}"
+      - "${RABBITMQ_MANAGEMENT_PORT}:${RABBITMQ_MANAGEMENT_PORT}"
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD}
+    volumes:
+      - "rabbitmq-data:/var/lib/rabbitmq"
+    networks:
+      - v2-backend-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "status"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+volumes:
+  postgres-data:
+  redis-data:
+  localstack-data:
+  rabbitmq-data:
+
+networks:
+  v2-backend-network:
+    driver: bridge
