@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/url"
-	"os"
 	"strings"
 
 	"github.com/Yeba-Technologies/go-api-foundry/internal/log"
@@ -24,12 +23,10 @@ func SetupTracing(logger *log.Logger) (func(context.Context) error, error) {
 
 	serviceName := utils.OTelServiceName()
 
-	endpoint := strings.TrimSpace(os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"))
-	if endpoint == "" {
-		endpoint = "http://localhost:4318"
-	}
+	endpoint := utils.GetEnvTrimmedOrDefault("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4318")
 
 	hostport, urlPath, insecure, err := parseOTLPEndpoint(endpoint)
+
 	if err != nil {
 		return nil, err
 	}

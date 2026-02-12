@@ -346,8 +346,8 @@ func shouldSetHSTS(c *gin.Context) bool {
 	appEnv := strings.ToLower(strings.TrimSpace(os.Getenv("APP_ENV")))
 
 	enabled := false
-	if strings.TrimSpace(os.Getenv("HSTS_ENABLED")) != "" {
-		b, err := strconv.ParseBool(os.Getenv("HSTS_ENABLED"))
+	if raw := utils.GetEnvTrimmed("HSTS_ENABLED"); raw != "" {
+		b, err := strconv.ParseBool(raw)
 		if err == nil {
 			enabled = b
 		}

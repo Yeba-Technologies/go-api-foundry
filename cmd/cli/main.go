@@ -9,6 +9,7 @@ import (
 	"github.com/Yeba-Technologies/go-api-foundry/config"
 	"github.com/Yeba-Technologies/go-api-foundry/internal/log"
 	"github.com/Yeba-Technologies/go-api-foundry/pkg/migrations"
+	"github.com/Yeba-Technologies/go-api-foundry/pkg/utils"
 )
 
 func main() {
@@ -44,10 +45,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		migrationsDir := os.Getenv("MIGRATIONS_DIR")
-		if migrationsDir == "" {
-			migrationsDir = "migrations"
-		}
+		migrationsDir := utils.GetEnvTrimmedOrDefault("MIGRATIONS_DIR", "migrations")
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 		defer cancel()

@@ -2,14 +2,13 @@ package router
 
 import (
 	"net/http"
-	"os"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/Yeba-Technologies/go-api-foundry/pkg/utils"
 )
 
 type metrics struct {
@@ -18,7 +17,7 @@ type metrics struct {
 }
 
 func metricsEnabled() bool {
-	v := strings.TrimSpace(os.Getenv("METRICS_ENABLED"))
+	v := utils.GetEnvTrimmed("METRICS_ENABLED")
 	if v == "" {
 		return true
 	}
