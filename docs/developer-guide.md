@@ -77,6 +77,8 @@ make migrate
 
 - Convenience flag (development only): pass `--auto-migrate` to the server (GORM AutoMigrate).
 
+This flag is gated by `APP_ENV` and will error in production-like environments.
+
 ### Migration directory
 
 By default the CLI reads migrations from `./migrations`. Override with:
@@ -267,7 +269,7 @@ RUN_INTEGRATION_TESTS=true go test ./integration/... -v
 
 ## Dependency Management
 
-This repo vendors dependencies.
+This repo tracks `vendor/modules.txt` for dependency verification.
 
 - After changing `go.mod`/`go.sum`, run:
 
@@ -275,4 +277,5 @@ This repo vendors dependencies.
 make vendor
 ```
 
-- CI verifies that `vendor/` is in sync. If you forget to re-vendor after dependency changes, CI will fail.
+- CI verifies that `vendor/modules.txt` is in sync. If you forget to run `make vendor` after dependency changes, CI will fail.
+- CI verifies that `vendor/modules.txt` is in sync. If you forget to run `make vendor` after dependency changes, CI will fail.

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"path/filepath"
+	"sync"
 	"strings"
 
 	"github.com/golang-migrate/migrate/v4"
@@ -42,6 +43,12 @@ func Up(ctx context.Context, db *sql.DB, cfg Config) error {
 	if db == nil {
 		return fmt.Errorf("migrations: db is nil")
 	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if strings.TrimSpace(cfg.Dir) == "" {
 		cfg.Dir = "migrations"
 	}
@@ -64,33 +71,46 @@ func Up(ctx context.Context, db *sql.DB, cfg Config) error {
 	if err != nil {
 		return fmt.Errorf("migrations: init: %w", err)
 	}
-	defer func() {
-		srcErr, dbErr := m.Close()
-		if cfg.Logger != nil {
-			if srcErr != nil {
-				cfg.Logger.Warn("Migrations source close error", "error", srcErr)
+	closeOnce := sync.Once{}
+	closeMigrator := func() {
+		closeOnce.Do(func() {
+			srcErr, dbErr := m.Close()
+			if cfg.Logger != nil {
+				if srcErr != nil {
+					cfg.Logger.Warn("Migrations source close error", "error", srcErr)
+				}
+				if dbErr != nil {
+					cfg.Logger.Warn("Migrations db close error", "error", dbErr)
+				}
 			}
-			if dbErr != nil {
-				cfg.Logger.Warn("Migrations db close error", "error", dbErr)
-			}
-		}
-	}()
-
-	// migrate doesn't use ctx directly for file source; keep signature for future.
-	_ = ctx
+		})
+	}
+	defer closeMigrator()
 
 	if cfg.Logger != nil {
 		cfg.Logger.Info("Running SQL migrations", "dir", absDir, "table", cfg.MigrationsTable)
 	}
 
-	if err := m.Up(); err != nil {
-		if err == migrate.ErrNoChange {
-			if cfg.Logger != nil {
-				cfg.Logger.Info("No migrations to apply")
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- m.Up()
+	}()
+
+	select {
+	case <-ctx.Done():
+		// Best-effort interruption. migrate doesn't accept a context directly.
+		closeMigrator()
+		return ctx.Err()
+	case err := <-errCh:
+		if err != nil {
+			if err == migrate.ErrNoChange {
+				if cfg.Logger != nil {
+					cfg.Logger.Info("No migrations to apply")
+				}
+				return nil
 			}
-			return nil
+			return fmt.Errorf("migrations: up: %w", err)
 		}
-		return fmt.Errorf("migrations: up: %w", err)
 	}
 
 	if cfg.Logger != nil {

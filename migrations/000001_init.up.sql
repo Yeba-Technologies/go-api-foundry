@@ -13,5 +13,6 @@ CREATE TABLE IF NOT EXISTS waitlist_entries (
     last_name TEXT NOT NULL
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_waitlist_entries_email ON waitlist_entries (email);
+
+ALTER TABLE waitlist_entries ADD CONSTRAINT uq_waitlist_entries_email UNIQUE (email);
 CREATE INDEX IF NOT EXISTS idx_waitlist_entries_deleted_at ON waitlist_entries (deleted_at);

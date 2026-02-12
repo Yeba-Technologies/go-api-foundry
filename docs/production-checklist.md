@@ -28,7 +28,7 @@ If this API is used from a browser (CORS):
 
 ## Database and migrations
 
-- Do not rely on `--auto-migrate` in production.
+- Do not rely on `--auto-migrate` in production (the server refuses it when `APP_ENV` is production-like).
 - Run migrations explicitly via the CLI:
 
 ```bash

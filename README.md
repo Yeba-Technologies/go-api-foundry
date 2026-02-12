@@ -87,7 +87,7 @@ Retry-After: 60
 This template supports migrations via:
 
 - Versioned SQL migrations (recommended): stored in `./migrations/` and applied via the CLI.
-- Server flag (development only): `--auto-migrate` (GORM AutoMigrate; convenient but not versioned).
+- Server flag (development only): `--auto-migrate` (GORM AutoMigrate; convenient but not versioned). This is blocked when `APP_ENV` is production-like.
 
 ```bash
 make migrate
