@@ -47,6 +47,6 @@ func ValidateAutoMigrateAllowed(appEnv string) error {
 	case "", "dev", "development", "local", "test", "testing":
 		return nil
 	default:
-		return fmt.Errorf("--auto-migrate is not allowed when %s=%q (allowed: dev/development/local/test)", AppEnvKey, env)
+		return fmt.Errorf("--auto-migrate is not allowed when %s=%q (allowed: \"\", dev, development, local, test, testing)", AppEnvKey, env)
 	}
 }
