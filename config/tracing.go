@@ -94,7 +94,7 @@ func parseOTLPEndpoint(raw string) (hostport string, urlPath string, insecure bo
 			path = "/v1/traces"
 		}
 
-		insecure := scheme == "http"
+		insecure = scheme == "http"
 		return u.Host, path, insecure, nil
 	}
 

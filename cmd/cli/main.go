@@ -32,18 +32,17 @@ func main() {
 
 			os.Exit(1)
 		}
-		defer func() {
-			sqlDB, err := db.DB()
-			if err == nil {
-				sqlDB.Close()
-			}
-		}()
 
 		sqlDB, err := db.DB()
 		if err != nil {
 			logger.Error("Failed to get SQL DB instance for migration", "error", err.Error())
 			os.Exit(1)
 		}
+		defer func() {
+			if err := sqlDB.Close(); err != nil {
+				logger.Warn("Failed to close SQL DB after migration", "error", err.Error())
+			}
+		}()
 
 		migrationsDir := utils.GetEnvTrimmedOrDefault("MIGRATIONS_DIR", "migrations")
 
