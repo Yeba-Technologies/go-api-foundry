@@ -86,12 +86,57 @@ Retry-After: 60
 
 This template supports migrations via:
 
-- Server flag (development only): `--auto-migrate`
-- CLI command (explicit, recommended):
+- Versioned SQL migrations (recommended): stored in `./migrations/` and applied via the CLI.
+- Server flag (development only): `--auto-migrate` (GORM AutoMigrate; convenient but not versioned). This is blocked when `APP_ENV` is production-like.
 
 ```bash
 make migrate
 ```
+
+By default the CLI reads migrations from `./migrations`. Override with `MIGRATIONS_DIR`.
+
+## Tracing (OpenTelemetry)
+
+Tracing is opt-in.
+
+Environment variables:
+
+- `OTEL_TRACES_ENABLED=true`
+- `OTEL_SERVICE_NAME=go-api-foundry` (optional)
+- `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318` (OTLP/HTTP)
+
+### Local backend (Jaeger)
+
+For local development, Jaeger is the simplest “works out of the box” backend: you get a UI and it accepts OTLP/HTTP.
+
+Run Jaeger:
+
+```bash
+docker-compose -f docker-compose.tracing.yaml up -d
+```
+
+Then enable tracing and point the exporter at it:
+
+```bash
+export OTEL_TRACES_ENABLED=true
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+export OTEL_SERVICE_NAME=go-api-foundry
+```
+
+Jaeger UI: http://localhost:16686
+
+### Verify traces end-to-end
+
+1) Start Jaeger (see above).
+2) Start the API (e.g. `make dev` or `make run`).
+3) Generate traffic:
+
+```bash
+curl -sS http://localhost:${APP_PORT:-8080}/health >/dev/null
+curl -sS http://localhost:${APP_PORT:-8080}/v1/waitlist >/dev/null || true
+```
+
+4) Open Jaeger UI, select service `go-api-foundry`, and search for recent traces.
 
 ## Configuration (high-signal)
 

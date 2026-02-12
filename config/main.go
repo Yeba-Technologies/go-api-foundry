@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"os"
 	"strconv"
 	"time"
@@ -13,11 +14,12 @@ import (
 )
 
 type ApplicationConfig struct {
-	DB            *gorm.DB
-	RouterService *router.RouterService
-	Logger        *log.Logger
-	Cache         Cache
-	Config        *AppConfig
+	DB              *gorm.DB
+	RouterService   *router.RouterService
+	Logger          *log.Logger
+	Cache           Cache
+	Config          *AppConfig
+	TracingShutdown func(context.Context) error
 }
 
 type AppConfig struct {
@@ -56,6 +58,14 @@ func NewAppConfig() *AppConfig {
 }
 
 func (ac *ApplicationConfig) Cleanup() {
+	if ac.TracingShutdown != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := ac.TracingShutdown(ctx); err != nil {
+			ac.Logger.Error("Failed to shutdown tracer provider", "error", err)
+		}
+	}
+
 	if ac.DB != nil {
 		CloseDatabase(ac.DB, ac.Logger)
 	}
@@ -74,6 +84,21 @@ func (ac *ApplicationConfig) Cleanup() {
 func LoadApplicationConfiguration(logger *log.Logger, autoMigrate bool) (*ApplicationConfig, error) {
 	InitializeEnvFile(logger)
 
+	if autoMigrate {
+		appEnv := GetAppEnv()
+		if err := ValidateAutoMigrateAllowed(appEnv); err != nil {
+			return nil, err
+		}
+		if appEnv == "" {
+			logger.Warn("APP_ENV not set; allowing --auto-migrate as development")
+		}
+	}
+
+	tracingShutdown, err := SetupTracing(logger)
+	if err != nil {
+		return nil, err
+	}
+
 	dbCfg := &DBConfig{}
 	db, err := NewDatabase(logger, dbCfg)
 	if err != nil {
@@ -81,7 +106,7 @@ func LoadApplicationConfiguration(logger *log.Logger, autoMigrate bool) (*Applic
 	}
 
 	if autoMigrate {
-		if err := Migrate(logger, db, models.ModelRegistry...); err != nil {
+		if err := AutoMigrate(logger, db, models.ModelRegistry...); err != nil {
 			return nil, err
 		}
 	}
@@ -98,10 +123,11 @@ func LoadApplicationConfiguration(logger *log.Logger, autoMigrate bool) (*Applic
 	logger.Info("Application configuration loaded successfully")
 
 	return &ApplicationConfig{
-		DB:            db,
-		RouterService: routerService,
-		Logger:        logger,
-		Cache:         cache,
-		Config:        appConfig,
+		DB:              db,
+		RouterService:   routerService,
+		Logger:          logger,
+		Cache:           cache,
+		Config:          appConfig,
+		TracingShutdown: tracingShutdown,
 	}, nil
 }

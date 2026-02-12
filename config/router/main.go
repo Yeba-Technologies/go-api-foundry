@@ -13,8 +13,10 @@ import (
 	"github.com/Yeba-Technologies/go-api-foundry/internal/log"
 	apperrors "github.com/Yeba-Technologies/go-api-foundry/pkg/errors"
 	"github.com/Yeba-Technologies/go-api-foundry/pkg/ratelimit"
+	"github.com/Yeba-Technologies/go-api-foundry/pkg/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 )
 
 const (
@@ -68,6 +70,12 @@ func CreateRouterService(logger *log.Logger, cache Cache, routerConfig *RouterCo
 
 	ginRouter := gin.New()
 	ginRouter.Use(gin.Recovery())
+
+	if utils.IsTracingEnabled() {
+		serviceName := utils.OTelServiceName()
+		ginRouter.Use(otelgin.Middleware(serviceName))
+		logger.Info("Tracing middleware enabled")
+	}
 
 	// SECURITY: Gin trusts all proxies by default, which makes ClientIP() depend
 	// on potentially spoofed X-Forwarded-For headers. Disable trust by default
@@ -338,8 +346,8 @@ func shouldSetHSTS(c *gin.Context) bool {
 	appEnv := strings.ToLower(strings.TrimSpace(os.Getenv("APP_ENV")))
 
 	enabled := false
-	if strings.TrimSpace(os.Getenv("HSTS_ENABLED")) != "" {
-		b, err := strconv.ParseBool(os.Getenv("HSTS_ENABLED"))
+	if raw := utils.GetEnvTrimmed("HSTS_ENABLED"); raw != "" {
+		b, err := strconv.ParseBool(raw)
 		if err == nil {
 			enabled = b
 		}

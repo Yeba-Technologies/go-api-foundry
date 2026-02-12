@@ -1,11 +1,15 @@
 package config
 
 import (
+	"fmt"
 	"os"
+	"strings"
 
 	"github.com/Yeba-Technologies/go-api-foundry/internal/log"
 	"github.com/joho/godotenv"
 )
+
+const AppEnvKey = "APP_ENV"
 
 func InitializeEnvFile(logger *log.Logger) {
 	logger.Info("Initializing environment variables from .env file if present")
@@ -30,4 +34,19 @@ func GetValueFromEnvironmentVariable(key, defaultValue string) string {
 	}
 
 	return defaultValue
+}
+
+func GetAppEnv() string {
+	return strings.ToLower(strings.TrimSpace(os.Getenv(AppEnvKey)))
+}
+
+func ValidateAutoMigrateAllowed(appEnv string) error {
+	env := strings.ToLower(strings.TrimSpace(appEnv))
+
+	switch env {
+	case "", "dev", "development", "local", "test", "testing":
+		return nil
+	default:
+		return fmt.Errorf("--auto-migrate is not allowed when %s=%q (allowed: \"\", dev, development, local, test, testing)", AppEnvKey, env)
+	}
 }

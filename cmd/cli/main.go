@@ -1,12 +1,15 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/Yeba-Technologies/go-api-foundry/config"
 	"github.com/Yeba-Technologies/go-api-foundry/internal/log"
-	"github.com/Yeba-Technologies/go-api-foundry/internal/models"
+	"github.com/Yeba-Technologies/go-api-foundry/pkg/migrations"
+	"github.com/Yeba-Technologies/go-api-foundry/pkg/utils"
 )
 
 func main() {
@@ -29,16 +32,25 @@ func main() {
 
 			os.Exit(1)
 		}
+
+		sqlDB, err := db.DB()
+		if err != nil {
+			logger.Error("Failed to get SQL DB instance for migration", "error", err.Error())
+			os.Exit(1)
+		}
 		defer func() {
-			sqlDB, err := db.DB()
-			if err == nil {
-				sqlDB.Close()
+			if err := sqlDB.Close(); err != nil {
+				logger.Warn("Failed to close SQL DB after migration", "error", err.Error())
 			}
 		}()
 
-		if err := config.Migrate(logger, db, models.ModelRegistry...); err != nil {
-			logger.Error("Database migration failed", "error", err.Error())
+		migrationsDir := utils.GetEnvTrimmedOrDefault("MIGRATIONS_DIR", "migrations")
 
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		defer cancel()
+
+		if err := migrations.Up(ctx, sqlDB, migrations.Config{Dir: migrationsDir, Logger: logger}); err != nil {
+			logger.Error("Database migration failed", "error", err.Error())
 			os.Exit(1)
 		}
 

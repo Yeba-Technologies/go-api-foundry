@@ -26,8 +26,11 @@ coverage.*
 *.coverprofile
 profile.cov
 
-# Dependency directories (remove the comment below to include it)
-vendor/
+# Dependency directories
+# This repo tracks vendor/modules.txt (for verification) but ignores the vendored source tree.
+vendor/**
+!vendor/
+!vendor/modules.txt
 
 # Go workspace file
 go.work
