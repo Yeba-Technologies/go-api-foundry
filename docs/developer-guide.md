@@ -273,3 +273,5 @@ This repo vendors dependencies.
 ```bash
 make vendor
 ```
+
+- CI verifies that `vendor/` is in sync. If you forget to re-vendor after dependency changes, CI will fail.

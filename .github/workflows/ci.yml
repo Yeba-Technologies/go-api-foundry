@@ -19,6 +19,15 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      - name: Vendor (verify)
+        run: |
+          go mod vendor
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "Vendoring is out of sync. Run 'go mod vendor' (or 'make vendor') and commit the changes."
+            git status --porcelain
+            exit 1
+          fi
+
       - name: Vet
         run: go vet ./...
 
