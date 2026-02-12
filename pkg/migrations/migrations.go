@@ -8,9 +8,23 @@ import (
 	"strings"
 
 	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
+
+type migrator interface {
+	Up() error
+	Close() (sourceErr error, databaseErr error)
+}
+
+var driverFactory = func(db *sql.DB, cfg Config) (database.Driver, error) {
+	return postgres.WithInstance(db, &postgres.Config{MigrationsTable: cfg.MigrationsTable})
+}
+
+var migratorFactory = func(sourceURL string, driver database.Driver) (migrator, error) {
+	return migrate.NewWithDatabaseInstance(sourceURL, "postgres", driver)
+}
 
 type Logger interface {
 	Info(msg string, args ...any)
@@ -41,12 +55,12 @@ func Up(ctx context.Context, db *sql.DB, cfg Config) error {
 	}
 	sourceURL := "file://" + absDir
 
-	driver, err := postgres.WithInstance(db, &postgres.Config{MigrationsTable: cfg.MigrationsTable})
+	driver, err := driverFactory(db, cfg)
 	if err != nil {
 		return fmt.Errorf("migrations: postgres driver: %w", err)
 	}
 
-	m, err := migrate.NewWithDatabaseInstance(sourceURL, "postgres", driver)
+	m, err := migratorFactory(sourceURL, driver)
 	if err != nil {
 		return fmt.Errorf("migrations: init: %w", err)
 	}

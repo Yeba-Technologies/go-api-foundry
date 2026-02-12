@@ -110,12 +110,13 @@ Option B: add this snippet to an existing compose:
 
 ```yaml
   jaeger:
-    image: jaegertracing/all-in-one:latest
+    image: jaegertracing/jaeger:2.15.1
     environment:
       - COLLECTOR_OTLP_ENABLED=true
     ports:
       - "16686:16686" # Jaeger UI
       - "4318:4318"   # OTLP/HTTP
+      - "4317:4317"   # OTLP/gRPC
 ```
 
 Jaeger UI: http://localhost:16686

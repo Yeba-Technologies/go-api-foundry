@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/Yeba-Technologies/go-api-foundry/internal/log"
+	"github.com/Yeba-Technologies/go-api-foundry/pkg/utils"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
@@ -18,20 +18,11 @@ import (
 )
 
 func SetupTracing(logger *log.Logger) (func(context.Context) error, error) {
-	enabled := strings.TrimSpace(os.Getenv("OTEL_TRACES_ENABLED"))
-	if enabled == "" {
+	if !utils.IsTracingEnabled() {
 		return nil, nil
 	}
 
-	b, err := strconv.ParseBool(enabled)
-	if err != nil || !b {
-		return nil, nil
-	}
-
-	serviceName := strings.TrimSpace(os.Getenv("OTEL_SERVICE_NAME"))
-	if serviceName == "" {
-		serviceName = "go-api-foundry"
-	}
+	serviceName := utils.OTelServiceName()
 
 	endpoint := strings.TrimSpace(os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"))
 	if endpoint == "" {
