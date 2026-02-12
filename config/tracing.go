@@ -98,6 +98,10 @@ func parseOTLPEndpoint(raw string) (hostport string, urlPath string, insecure bo
 		return u.Host, path, insecure, nil
 	}
 
-	// host:port
+	// host:port (no scheme). Reject values that look like they contain a path,
+	// query, or fragment, since otlptracehttp.WithEndpoint expects just host:port.
+	if strings.ContainsAny(raw, "/?#") {
+		return "", "", false, fmt.Errorf("invalid OTLP endpoint %q: missing scheme; when specifying a path or query, use an endpoint like \"http://host:port[/path]\"", raw)
+	}
 	return raw, "/v1/traces", true, nil
 }
