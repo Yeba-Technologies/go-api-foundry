@@ -83,11 +83,19 @@ func parseOTLPEndpoint(raw string) (hostport string, urlPath string, insecure bo
 		if u.Host == "" {
 			return "", "", false, fmt.Errorf("invalid OTLP endpoint %q: missing host", raw)
 		}
+
+		scheme := strings.ToLower(u.Scheme)
+		if scheme != "http" && scheme != "https" {
+			return "", "", false, fmt.Errorf("unsupported OTLP endpoint scheme %q in %q; only http and https are supported", u.Scheme, raw)
+		}
+
 		path := u.EscapedPath()
 		if path == "" || path == "/" {
 			path = "/v1/traces"
 		}
-		return u.Host, path, strings.EqualFold(u.Scheme, "http"), nil
+
+		insecure := scheme == "http"
+		return u.Host, path, insecure, nil
 	}
 
 	// host:port
