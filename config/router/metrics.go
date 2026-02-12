@@ -5,10 +5,10 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/Yeba-Technologies/go-api-foundry/pkg/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/Yeba-Technologies/go-api-foundry/pkg/utils"
 )
 
 type metrics struct {
