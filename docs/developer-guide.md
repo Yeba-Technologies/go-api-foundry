@@ -278,4 +278,3 @@ make vendor
 ```
 
 - CI verifies that `vendor/modules.txt` is in sync. If you forget to run `make vendor` after dependency changes, CI will fail.
-- CI verifies that `vendor/modules.txt` is in sync. If you forget to run `make vendor` after dependency changes, CI will fail.
