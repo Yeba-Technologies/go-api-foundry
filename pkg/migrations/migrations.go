@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net/url"
 	"path/filepath"
 	"sync"
 	"strings"
@@ -60,7 +61,13 @@ func Up(ctx context.Context, db *sql.DB, cfg Config) error {
 	if err != nil {
 		return fmt.Errorf("migrations: resolve dir: %w", err)
 	}
-	sourceURL := "file://" + absDir
+	
+	// Build a proper file:// URL with correct escaping and path separators.
+	// Use ToSlash to normalize Windows backslashes to forward slashes.
+	sourceURL := (&url.URL{
+		Scheme: "file",
+		Path:   filepath.ToSlash(absDir),
+	}).String()
 
 	driver, err := driverFactory(db, cfg)
 	if err != nil {
