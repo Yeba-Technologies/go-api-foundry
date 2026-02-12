@@ -4,8 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"net/url"
+	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -210,13 +211,11 @@ func TestUp_BuildsFileSourceURL(t *testing.T) {
 	}
 
 	abs, _ := filepath.Abs(tmp)
-	expected := "file://" + abs
-
-	// Normalize path separators for Windows.
-	if runtime.GOOS == "windows" {
-		expected = strings.ReplaceAll(expected, "\\", "/")
-		gotSourceURL = strings.ReplaceAll(gotSourceURL, "\\", "/")
-	}
+	// Build expected URL using net/url.URL to match implementation
+	expected := (&url.URL{
+		Scheme: "file",
+		Path:   filepath.ToSlash(abs),
+	}).String()
 
 	if gotSourceURL != expected {
 		t.Fatalf("expected sourceURL %q, got %q", expected, gotSourceURL)
@@ -242,5 +241,58 @@ func TestUp_MigratorInitError(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "migrations: init") {
 		t.Fatalf("expected wrapped init error, got %v", err)
+	}
+}
+
+func TestUp_HandlesPathsWithSpecialCharacters(t *testing.T) {
+	origDriverFactory := driverFactory
+	origMigratorFactory := migratorFactory
+	t.Cleanup(func() {
+		driverFactory = origDriverFactory
+		migratorFactory = origMigratorFactory
+	})
+
+	// Create a directory with spaces and special characters
+	tmp := t.TempDir()
+	dirWithSpaces := filepath.Join(tmp, "my migrations dir")
+	if err := os.MkdirAll(dirWithSpaces, 0755); err != nil {
+		t.Fatalf("failed to create test dir: %v", err)
+	}
+
+	var gotSourceURL string
+	driverFactory = func(_ *sql.DB, _ Config) (database.Driver, error) { return nil, nil }
+	migratorFactory = func(sourceURL string, _ database.Driver) (migrator, error) {
+		gotSourceURL = sourceURL
+		return &fakeMigrator{upErr: migrate.ErrNoChange}, nil
+	}
+
+	err := Up(context.Background(), &sql.DB{}, Config{Dir: dirWithSpaces})
+	if err != nil {
+		t.Fatalf("expected nil error, got %v", err)
+	}
+
+	// Verify the URL is properly encoded
+	if !strings.HasPrefix(gotSourceURL, "file://") {
+		t.Fatalf("expected file:// scheme, got %q", gotSourceURL)
+	}
+
+	// Parse the URL to ensure it's valid
+	parsedURL, err := url.Parse(gotSourceURL)
+	if err != nil {
+		t.Fatalf("sourceURL is not a valid URL: %v", err)
+	}
+
+	// The path should contain encoded spaces (%20)
+	if parsedURL.Scheme != "file" {
+		t.Fatalf("expected scheme 'file', got %q", parsedURL.Scheme)
+	}
+
+	// Verify we can decode the path back to the original
+	decodedPath := parsedURL.Path
+	abs, _ := filepath.Abs(dirWithSpaces)
+	expectedPath := filepath.ToSlash(abs)
+
+	if decodedPath != expectedPath {
+		t.Fatalf("expected path %q, got %q", expectedPath, decodedPath)
 	}
 }
