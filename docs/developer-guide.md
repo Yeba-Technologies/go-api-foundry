@@ -69,13 +69,76 @@ Server URL: `http://localhost:${APP_PORT:-8080}`
 
 There are two supported migration flows:
 
-- Explicit (recommended):
+- Explicit, versioned SQL migrations (recommended):
 
 ```bash
 make migrate
 ```
 
-- Convenience flag (development only): pass `--auto-migrate` to the server.
+- Convenience flag (development only): pass `--auto-migrate` to the server (GORM AutoMigrate).
+
+### Migration directory
+
+By default the CLI reads migrations from `./migrations`. Override with:
+
+- `MIGRATIONS_DIR=/path/to/migrations`
+
+## Tracing (OpenTelemetry)
+
+Tracing is opt-in and uses OTLP/HTTP.
+
+Enable:
+
+- `OTEL_TRACES_ENABLED=true`
+- `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318`
+
+Optional:
+
+- `OTEL_SERVICE_NAME=go-api-foundry`
+
+### Local backend: Jaeger
+
+Jaeger is a good default local tracing backend because it provides a UI and accepts OTLP.
+
+Option A: run the provided compose file:
+
+```bash
+docker-compose -f docker-compose.tracing.yaml up -d
+```
+
+Option B: add this snippet to an existing compose:
+
+```yaml
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - "16686:16686" # Jaeger UI
+      - "4318:4318"   # OTLP/HTTP
+```
+
+Jaeger UI: http://localhost:16686
+
+### Verify traces end-to-end
+
+1) Run Jaeger (above).
+2) Enable tracing:
+
+```bash
+export OTEL_TRACES_ENABLED=true
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+export OTEL_SERVICE_NAME=go-api-foundry
+```
+
+3) Start the API.
+4) Make a request (any route works):
+
+```bash
+curl -sS http://localhost:${APP_PORT:-8080}/health >/dev/null
+```
+
+5) Open Jaeger UI and search for service `go-api-foundry`.
 
 ## HTTP Server & Router Behavior
 

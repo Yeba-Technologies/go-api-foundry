@@ -1,12 +1,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/Yeba-Technologies/go-api-foundry/config"
 	"github.com/Yeba-Technologies/go-api-foundry/internal/log"
-	"github.com/Yeba-Technologies/go-api-foundry/internal/models"
+	"github.com/Yeba-Technologies/go-api-foundry/pkg/migrations"
 )
 
 func main() {
@@ -36,9 +38,22 @@ func main() {
 			}
 		}()
 
-		if err := config.Migrate(logger, db, models.ModelRegistry...); err != nil {
-			logger.Error("Database migration failed", "error", err.Error())
+		sqlDB, err := db.DB()
+		if err != nil {
+			logger.Error("Failed to get SQL DB instance for migration", "error", err.Error())
+			os.Exit(1)
+		}
 
+		migrationsDir := os.Getenv("MIGRATIONS_DIR")
+		if migrationsDir == "" {
+			migrationsDir = "migrations"
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		defer cancel()
+
+		if err := migrations.Up(ctx, sqlDB, migrations.Config{Dir: migrationsDir, Logger: logger}); err != nil {
+			logger.Error("Database migration failed", "error", err.Error())
 			os.Exit(1)
 		}
 

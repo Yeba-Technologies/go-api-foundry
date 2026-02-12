@@ -15,6 +15,7 @@ import (
 	"github.com/Yeba-Technologies/go-api-foundry/pkg/ratelimit"
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 )
 
 const (
@@ -68,6 +69,15 @@ func CreateRouterService(logger *log.Logger, cache Cache, routerConfig *RouterCo
 
 	ginRouter := gin.New()
 	ginRouter.Use(gin.Recovery())
+
+	if tracingEnabled() {
+		serviceName := strings.TrimSpace(os.Getenv("OTEL_SERVICE_NAME"))
+		if serviceName == "" {
+			serviceName = "go-api-foundry"
+		}
+		ginRouter.Use(otelgin.Middleware(serviceName))
+		logger.Info("Tracing middleware enabled")
+	}
 
 	// SECURITY: Gin trusts all proxies by default, which makes ClientIP() depend
 	// on potentially spoofed X-Forwarded-For headers. Disable trust by default
@@ -155,6 +165,18 @@ func CreateRouterService(logger *log.Logger, cache Cache, routerConfig *RouterCo
 
 	logger.Info("Router service initialized")
 	return rs
+}
+
+func tracingEnabled() bool {
+	v := strings.TrimSpace(os.Getenv("OTEL_TRACES_ENABLED"))
+	if v == "" {
+		return false
+	}
+	b, err := strconv.ParseBool(v)
+	if err != nil {
+		return false
+	}
+	return b
 }
 
 func parseTrustedProxiesEnv(v string) []string {

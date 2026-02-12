@@ -137,7 +137,7 @@ func sanitizeEnv(v string) string {
 	return s
 }
 
-func Migrate(logger *log.Logger, db *gorm.DB, models ...interface{}) error {
+func AutoMigrate(logger *log.Logger, db *gorm.DB, models ...interface{}) error {
 	if db == nil {
 		logger.Error("Cannot migrate: db is empty")
 		return fmt.Errorf("cannot migrate: db is empty")
