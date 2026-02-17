@@ -1,4 +1,4 @@
-.PHONY: run run-with-migrate migrate generate-domain build tidy docker-build docker-run dev dev-migrate
+.PHONY: run run-with-migrate migrate generate-domain build tidy docker-build docker-run dev dev-migrate test test-integration test-all test-ci
 
 run:
 	go run ./cmd/server
@@ -27,8 +27,25 @@ lint:
 vendor:
 	go mod vendor
 
+## ---- Test targets ----
+
+# Unit tests only — fast, no external dependencies (DB, Redis, queues).
 test:
-	go test ./...
+	go test -count=1 ./...
+
+# Integration tests — requires Docker for testcontainers (Postgres, Redis).
+test-integration:
+	go test -tags=integration -count=1 -v ./integration/...
+
+# All tests — unit + integration.
+test-all:
+	go test -tags=integration -count=1 -race ./...
+
+# CI pipeline — all tests with race detection and coverage report.
+test-ci:
+	go test -tags=integration -count=1 -race -coverprofile=coverage.out ./...
+
+## ---- End test targets ----
 
 build:
 	go build -o bin/server ./cmd/server

@@ -1,22 +1,24 @@
+//go:build integration
+
 package integration
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/Yeba-Technologies/go-api-foundry/config"
 	"github.com/Yeba-Technologies/go-api-foundry/config/router"
 	"github.com/Yeba-Technologies/go-api-foundry/domain"
+	"github.com/Yeba-Technologies/go-api-foundry/integration/testhelpers"
 	"github.com/Yeba-Technologies/go-api-foundry/internal/log"
 	"github.com/Yeba-Technologies/go-api-foundry/internal/models"
 	"github.com/stretchr/testify/suite"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
@@ -30,11 +32,14 @@ type WaitlistAPITestSuite struct {
 }
 
 func (suite *WaitlistAPITestSuite) SetupSuite() {
-	var err error
-	suite.db, err = gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	suite.Require().NoError(err)
+	ctx := context.Background()
 
-	err = suite.db.AutoMigrate(&models.WaitlistEntry{})
+	// Use a real Postgres container via testcontainers-go.
+	db, _ := testhelpers.StartPostgres(ctx, suite.T())
+	suite.db = db
+
+	// Run GORM AutoMigrate so the schema matches models exactly.
+	err := suite.db.AutoMigrate(&models.WaitlistEntry{})
 	suite.Require().NoError(err)
 
 	suite.logger = log.NewLoggerWithJSONOutput()
@@ -64,10 +69,12 @@ func (suite *WaitlistAPITestSuite) TearDownSuite() {
 		sqlDB, _ := suite.db.DB()
 		sqlDB.Close()
 	}
+	// Container cleanup is handled by testhelpers.StartPostgres via t.Cleanup.
 }
 
 func (suite *WaitlistAPITestSuite) SetupTest() {
-	suite.db.Exec("DELETE FROM waitlist_entries")
+	// Truncate instead of DELETE for faster cleanup with identity reset.
+	suite.db.Exec("TRUNCATE TABLE waitlist_entries RESTART IDENTITY CASCADE")
 }
 
 func (suite *WaitlistAPITestSuite) TestHealthCheck() {
@@ -328,10 +335,11 @@ func (suite *WaitlistAPITestSuite) TestDeleteWaitlistEntry() {
 	suite.Equal(float64(200), response["code"])
 	suite.Contains(response["message"], "deleted successfully")
 
-	// Verify the entry is deleted
+	// Verify the entry is soft-deleted — GORM soft-deletes, so Unscoped is needed.
 	var deletedEntry models.WaitlistEntry
-	err = suite.db.First(&deletedEntry, entry.ID).Error
-	suite.True(err != nil) // Should return error because entry is deleted
+	err = suite.db.Unscoped().First(&deletedEntry, entry.ID).Error
+	suite.Require().NoError(err)
+	suite.True(deletedEntry.DeletedAt.Valid, "entry should be soft-deleted")
 }
 
 func (suite *WaitlistAPITestSuite) TestDuplicateEmailError() {
@@ -367,67 +375,6 @@ func (suite *WaitlistAPITestSuite) TestDuplicateEmailError() {
 	suite.Contains(response["message"], "already exists")
 }
 
-func TestSimpleHealthCheck(t *testing.T) {
-	// Skip integration tests unless explicitly requested
-	if os.Getenv("RUN_INTEGRATION_TESTS") != "true" {
-		t.Skip("Skipping integration tests. Set RUN_INTEGRATION_TESTS=true to run them")
-	}
-
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	if err != nil {
-		t.Fatalf("Failed to connect to test database: %v", err)
-	}
-
-	err = db.AutoMigrate(&models.WaitlistEntry{})
-	if err != nil {
-		t.Fatalf("Failed to run migrations: %v", err)
-	}
-
-	logger := log.NewLoggerWithJSONOutput()
-
-	appConfig := &config.ApplicationConfig{
-		DB:     db,
-		Logger: logger,
-	}
-
-	appConfig.RouterService = router.CreateRouterService(logger, nil, &router.RouterConfig{
-		RateLimitRequests: 100,
-		RateLimitWindow:   time.Minute,
-		RequestTimeout:    30 * time.Second,
-	})
-
-	domain.SetupCoreDomain(appConfig)
-
-	server := httptest.NewServer(appConfig.RouterService.GetEngine())
-	defer server.Close()
-	resp, err := http.Get(server.URL + "/health")
-	if err != nil {
-		t.Fatalf("Failed to make request: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		t.Errorf("Expected status 200, got %d", resp.StatusCode)
-	}
-
-	var response map[string]interface{}
-	err = json.NewDecoder(resp.Body).Decode(&response)
-	if err != nil {
-		t.Fatalf("Failed to decode response: %v", err)
-	}
-
-	if response["code"].(float64) != 200 {
-		t.Errorf("Expected code 200, got %v", response["code"])
-	}
-
-	t.Logf("Health check response: %+v", response)
-}
-
 func TestWaitlistAPISuite(t *testing.T) {
-	// Skip integration tests unless explicitly requested
-	if os.Getenv("RUN_INTEGRATION_TESTS") != "true" {
-		t.Skip("Skipping integration tests. Set RUN_INTEGRATION_TESTS=true to run them")
-	}
-
 	suite.Run(t, new(WaitlistAPITestSuite))
 }
