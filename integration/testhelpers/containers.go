@@ -163,7 +163,10 @@ func StartLocalStack(ctx context.Context, t *testing.T) *LocalStackContainer {
 	}
 
 	t.Cleanup(func() {
-		if err := lsContainer.Terminate(ctx); err != nil {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		if err := lsContainer.Terminate(shutdownCtx); err != nil {
 			t.Logf("failed to terminate localstack container: %v", err)
 		}
 	})
