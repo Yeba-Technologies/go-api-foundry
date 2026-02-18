@@ -74,7 +74,8 @@ func (suite *WaitlistAPITestSuite) TearDownSuite() {
 
 func (suite *WaitlistAPITestSuite) SetupTest() {
 	// Truncate instead of DELETE for faster cleanup with identity reset.
-	suite.db.Exec("TRUNCATE TABLE waitlist_entries RESTART IDENTITY CASCADE")
+	res := suite.db.Exec("TRUNCATE TABLE waitlist_entries RESTART IDENTITY CASCADE")
+	suite.Require().NoError(res.Error)
 }
 
 func (suite *WaitlistAPITestSuite) TestHealthCheck() {
