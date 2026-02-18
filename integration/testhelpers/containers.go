@@ -34,8 +34,8 @@ type RedisContainer struct {
 }
 
 // StartPostgres spins up an ephemeral Postgres container and returns a
-// connected *gorm.DB plus cleanup function. The container is removed
-// automatically when the test completes.
+// connected *gorm.DB and a *PostgresContainer (including its connection string).
+// Container teardown is registered via t.Cleanup and runs automatically when the test completes.
 func StartPostgres(ctx context.Context, t *testing.T) (*gorm.DB, *PostgresContainer) {
 	t.Helper()
 	requireDocker(t)
