@@ -36,10 +36,17 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 COPY . .
 
 # Build the server binary from cmd/server
+ARG VERSION=dev
+ARG COMMIT=unknown
+ARG BUILD_TIME=unknown
+
 RUN --mount=type=cache,target=/go/pkg/mod \
     CGO_ENABLED=0 GOOS=linux go build \
     -trimpath \
-    -ldflags='-s -w' \
+    -ldflags="-s -w \
+      -X github.com/Yeba-Technologies/go-api-foundry/internal/version.Version=${VERSION} \
+      -X github.com/Yeba-Technologies/go-api-foundry/internal/version.Commit=${COMMIT} \
+      -X github.com/Yeba-Technologies/go-api-foundry/internal/version.BuildTime=${BUILD_TIME}" \
     -o /go-api-foundry \
     ./cmd/server
 

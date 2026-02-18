@@ -13,6 +13,7 @@ import (
 	"github.com/Yeba-Technologies/go-api-foundry/config"
 	"github.com/Yeba-Technologies/go-api-foundry/domain"
 	"github.com/Yeba-Technologies/go-api-foundry/internal/log"
+	"github.com/Yeba-Technologies/go-api-foundry/internal/version"
 )
 
 func main() {
@@ -22,6 +23,10 @@ func main() {
 		switch strings.ToLower(arg) {
 		case "--health", "-health":
 			os.Exit(runHealthCheck())
+		case "--version", "-v":
+			v := version.Get()
+			fmt.Printf("%s (commit: %s, built: %s)\n", v.Version, v.Commit, v.BuildTime)
+			os.Exit(0)
 		case "--auto-migrate", "-m":
 			autoMigrate = true
 		}

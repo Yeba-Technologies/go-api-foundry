@@ -47,8 +47,16 @@ test-ci:
 
 ## ---- End test targets ----
 
+VERSION ?= dev
+COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
+BUILD_TIME ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
+LDFLAGS := -s -w \
+  -X github.com/Yeba-Technologies/go-api-foundry/internal/version.Version=$(VERSION) \
+  -X github.com/Yeba-Technologies/go-api-foundry/internal/version.Commit=$(COMMIT) \
+  -X github.com/Yeba-Technologies/go-api-foundry/internal/version.BuildTime=$(BUILD_TIME)
+
 build:
-	go build -o bin/server ./cmd/server
+	go build -trimpath -ldflags='$(LDFLAGS)' -o bin/server ./cmd/server
 
 tidy:
 	go mod tidy

@@ -6,6 +6,7 @@ import (
 
 	"github.com/Yeba-Technologies/go-api-foundry/config/router"
 	"github.com/Yeba-Technologies/go-api-foundry/internal/log"
+	"github.com/Yeba-Technologies/go-api-foundry/internal/version"
 	"github.com/Yeba-Technologies/go-api-foundry/pkg/ratelimit"
 	"gorm.io/gorm"
 )
@@ -15,11 +16,12 @@ type Cache interface {
 }
 
 type HealthStatus struct {
-	Database     int `json:"database"`      // 1 = healthy, 0 = unhealthy
-	Cache        int `json:"cache"`         // 1 = healthy, 0 = unhealthy/not configured
-	MessageQueue int `json:"message_queue"` // 1 = healthy, 0 = not implemented
-	Storage      int `json:"storage"`       // 1 = healthy, 0 = not implemented
-	Uptime       int `json:"uptime"`        // uptime in seconds
+	Version      version.Info `json:"version"`
+	Database     int          `json:"database"`      // 1 = healthy, 0 = unhealthy
+	Cache        int          `json:"cache"`         // 1 = healthy, 0 = unhealthy/not configured
+	MessageQueue int          `json:"message_queue"` // 1 = healthy, 0 = not implemented
+	Storage      int          `json:"storage"`       // 1 = healthy, 0 = not implemented
+	Uptime       int          `json:"uptime"`        // uptime in seconds
 }
 
 type MonitoringController struct {
@@ -50,6 +52,10 @@ func NewMonitoringController(db *gorm.DB, logger *log.Logger, cache Cache) *rout
 
 			routerService.AddGetHandler(controller, monitoringRateLimiter, "health", func(c *router.RequestContext) *router.ServiceResult {
 				return ctrl.healthCheck(routerService, c)
+			})
+
+			routerService.AddGetHandler(controller, monitoringRateLimiter, "version", func(c *router.RequestContext) *router.ServiceResult {
+				return router.OKResult(version.Get(), "Version info")
 			})
 
 			routerService.AddGetHandler(controller, nil, "extras/greet", func(c *router.RequestContext) *router.ServiceResult {
@@ -110,7 +116,8 @@ func (ctrl *MonitoringController) monitor(
 
 func (ctrl *MonitoringController) performHealthChecks(ctx context.Context, logger *log.Logger) HealthStatus {
 	status := HealthStatus{
-		Uptime: int(time.Since(ctrl.startTime).Seconds()),
+		Version: version.Get(),
+		Uptime:  int(time.Since(ctrl.startTime).Seconds()),
 	}
 
 	checkDatabaseConnectivity(ctx, ctrl, &status, logger)
