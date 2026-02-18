@@ -55,7 +55,7 @@ COPY . .
 
 # Run unit tests only (no integration tag, no external deps needed).
 # Integration tests require Docker-in-Docker and are run separately in CI.
-RUN CGO_ENABLED=0 go test -count=1 ./...
+RUN CGO_ENABLED=0 go test -count=1 $(go list ./... | grep -v '/integration$')
 
 FROM scratch AS production-stage
 
