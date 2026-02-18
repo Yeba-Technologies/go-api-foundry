@@ -17,19 +17,20 @@ import (
 // against a real Redis instance.
 type RateLimitRedisTestSuite struct {
 	suite.Suite
+	ctx     context.Context
 	client  *redis.Client
 	limiter ratelimit.RateLimiter
 }
 
 func (suite *RateLimitRedisTestSuite) SetupSuite() {
-	ctx := context.Background()
-	redisC := testhelpers.StartRedis(ctx, suite.T())
+	suite.ctx = context.Background()
+	redisC := testhelpers.StartRedis(suite.ctx, suite.T())
 
 	suite.client = redis.NewClient(&redis.Options{
 		Addr: redisC.Addr(),
 	})
 
-	err := suite.client.Ping(ctx).Err()
+	err := suite.client.Ping(suite.ctx).Err()
 	suite.Require().NoError(err, "should ping test redis")
 
 	// Allow 3 requests per 1-second window for testing.
@@ -44,7 +45,8 @@ func (suite *RateLimitRedisTestSuite) TearDownSuite() {
 
 func (suite *RateLimitRedisTestSuite) SetupTest() {
 	// Flush all keys so each test starts clean.
-	suite.client.FlushAll(context.Background())
+	err := suite.client.FlushAll(suite.ctx).Err()
+	suite.Require().NoError(err, "FlushAll must succeed for a clean test state")
 }
 
 // TestUnderLimit verifies requests within the allowed window are not limited.
@@ -72,9 +74,11 @@ func (suite *RateLimitRedisTestSuite) TestOverLimit() {
 func (suite *RateLimitRedisTestSuite) TestPerKeyIsolation() {
 	// Exhaust key-a
 	for i := 0; i < 3; i++ {
-		_, _ = suite.limiter.IsLimited("key-a")
+		_, err := suite.limiter.IsLimited("key-a")
+		suite.Require().NoError(err)
 	}
-	limitedA, _ := suite.limiter.IsLimited("key-a")
+	limitedA, err := suite.limiter.IsLimited("key-a")
+	suite.Require().NoError(err)
 	suite.True(limitedA)
 
 	// key-b should still have quota
@@ -86,9 +90,11 @@ func (suite *RateLimitRedisTestSuite) TestPerKeyIsolation() {
 // TestWindowExpiry verifies the limiter resets after the window elapses.
 func (suite *RateLimitRedisTestSuite) TestWindowExpiry() {
 	for i := 0; i < 3; i++ {
-		_, _ = suite.limiter.IsLimited("key-expiry")
+		_, err := suite.limiter.IsLimited("key-expiry")
+		suite.Require().NoError(err)
 	}
-	limited, _ := suite.limiter.IsLimited("key-expiry")
+	limited, err := suite.limiter.IsLimited("key-expiry")
+	suite.Require().NoError(err)
 	suite.True(limited)
 
 	// Wait for the window to expire

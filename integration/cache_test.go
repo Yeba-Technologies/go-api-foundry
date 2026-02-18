@@ -79,7 +79,8 @@ func (suite *CacheIntegrationTestSuite) TearDownSuite() {
 		suite.server.Close()
 	}
 	if suite.cache != nil {
-		suite.cache.Close()
+		err := suite.cache.Close()
+		suite.Require().NoError(err, "Redis cache should close cleanly")
 	}
 	if suite.db != nil {
 		sqlDB, _ := suite.db.DB()
