@@ -100,7 +100,7 @@ func (suite *RateLimitRedisTestSuite) TestWindowExpiry() {
 	// Wait for the window to expire
 	time.Sleep(1100 * time.Millisecond)
 
-	limited, err := suite.limiter.IsLimited("key-expiry")
+	limited, err = suite.limiter.IsLimited("key-expiry")
 	suite.Require().NoError(err)
 	suite.False(limited, "should be allowed after window expires")
 }
