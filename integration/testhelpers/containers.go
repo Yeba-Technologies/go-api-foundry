@@ -45,8 +45,10 @@ type LocalStackContainer struct {
 // RabbitMQContainer wraps a testcontainers RabbitMQ instance.
 type RabbitMQContainer struct {
 	*tcrabbitmq.RabbitMQContainer
-	Host string
+	Host     string
 	AmqpPort string
+	Username string
+	Password string
 }
 
 // StartPostgres spins up an ephemeral Postgres container and returns a
@@ -142,7 +144,7 @@ func StartLocalStack(ctx context.Context, t *testing.T) *LocalStackContainer {
 	requireDocker(t)
 
 	lsContainer, err := tclocalstack.Run(ctx,
-		"localstack/localstack:latest",
+		"localstack/localstack:4.13",
 		testcontainers.WithEnv(map[string]string{
 			"SERVICES":              "sqs",
 			"AWS_ACCESS_KEY_ID":     "test",
@@ -193,10 +195,13 @@ func StartRabbitMQ(ctx context.Context, t *testing.T) *RabbitMQContainer {
 	t.Helper()
 	requireDocker(t)
 
+	const username = "test"
+	const password = "test"
+
 	rmqContainer, err := tcrabbitmq.Run(ctx,
 		"rabbitmq:4.2-management-alpine",
-		tcrabbitmq.WithAdminUsername("test"),
-		tcrabbitmq.WithAdminPassword("test"),
+		tcrabbitmq.WithAdminUsername(username),
+		tcrabbitmq.WithAdminPassword(password),
 		testcontainers.WithWaitStrategy(
 			wait.ForLog("Server startup complete").
 				WithStartupTimeout(60*time.Second),
@@ -226,10 +231,12 @@ func StartRabbitMQ(ctx context.Context, t *testing.T) *RabbitMQContainer {
 		RabbitMQContainer: rmqContainer,
 		Host:              host,
 		AmqpPort:          mappedPort.Port(),
+		Username:          username,
+		Password:          password,
 	}
 }
 
 // AmqpURL returns the AMQP connection URL for the RabbitMQ container.
 func (r *RabbitMQContainer) AmqpURL() string {
-	return fmt.Sprintf("amqp://test:test@%s:%s/", r.Host, r.AmqpPort)
+	return fmt.Sprintf("amqp://%s:%s@%s:%s/", r.Username, r.Password, r.Host, r.AmqpPort)
 }

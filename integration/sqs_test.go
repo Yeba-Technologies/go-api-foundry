@@ -5,6 +5,7 @@ package integration
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/Yeba-Technologies/go-api-foundry/integration/testhelpers"
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -23,7 +24,9 @@ type SQSIntegrationTestSuite struct {
 }
 
 func (suite *SQSIntegrationTestSuite) SetupSuite() {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
 	lsContainer := testhelpers.StartLocalStack(ctx, suite.T())
 
 	suite.client = sqs.New(sqs.Options{
@@ -42,7 +45,8 @@ func (suite *SQSIntegrationTestSuite) SetupSuite() {
 
 // TestSendAndReceiveMessage validates the full send → receive → delete cycle.
 func (suite *SQSIntegrationTestSuite) TestSendAndReceiveMessage() {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
 	// Send
 	_, err := suite.client.SendMessage(ctx, &sqs.SendMessageInput{
@@ -71,7 +75,8 @@ func (suite *SQSIntegrationTestSuite) TestSendAndReceiveMessage() {
 
 // TestCreateFIFOQueue validates FIFO queue creation with content-based dedup.
 func (suite *SQSIntegrationTestSuite) TestCreateFIFOQueue() {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
 	out, err := suite.client.CreateQueue(ctx, &sqs.CreateQueueInput{
 		QueueName: aws.String("test-fifo-queue.fifo"),
@@ -86,7 +91,8 @@ func (suite *SQSIntegrationTestSuite) TestCreateFIFOQueue() {
 
 // TestListQueues verifies the queue created in SetupSuite is discoverable.
 func (suite *SQSIntegrationTestSuite) TestListQueues() {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
 	out, err := suite.client.ListQueues(ctx, &sqs.ListQueuesInput{})
 	suite.Require().NoError(err)

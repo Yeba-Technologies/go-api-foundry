@@ -73,14 +73,15 @@ func (suite *RabbitMQIntegrationTestSuite) TestPublishAndConsume() {
 	suite.Require().NoError(err)
 
 	// Consume.
+	consumerTag := "test-publish-consume"
 	msgs, err := suite.ch.Consume(
-		q.Name, // queue
-		"",     // consumer tag
-		true,   // autoAck
-		false,  // exclusive
-		false,  // noLocal
-		false,  // noWait
-		nil,    // args
+		q.Name,      // queue
+		consumerTag, // consumer tag
+		true,        // autoAck
+		false,       // exclusive
+		false,       // noLocal
+		false,       // noWait
+		nil,         // args
 	)
 	suite.Require().NoError(err)
 
@@ -91,6 +92,10 @@ func (suite *RabbitMQIntegrationTestSuite) TestPublishAndConsume() {
 	case <-time.After(10 * time.Second):
 		suite.Fail("timed out waiting for message from RabbitMQ")
 	}
+
+	// Cancel the consumer to avoid server-side resource leaks.
+	err = suite.ch.Cancel(consumerTag, false)
+	suite.Require().NoError(err, "should cancel consumer")
 }
 
 // TestExchangeDeclareAndBind validates exchange creation and queue binding.
@@ -129,7 +134,8 @@ func (suite *RabbitMQIntegrationTestSuite) TestExchangeDeclareAndBind() {
 	suite.Require().NoError(err)
 
 	// Consume from bound queue.
-	msgs, err := suite.ch.Consume(q.Name, "", true, false, false, false, nil)
+	consumerTag := "test-exchange-bind"
+	msgs, err := suite.ch.Consume(q.Name, consumerTag, true, false, false, false, nil)
 	suite.Require().NoError(err)
 
 	select {
@@ -139,6 +145,10 @@ func (suite *RabbitMQIntegrationTestSuite) TestExchangeDeclareAndBind() {
 	case <-time.After(10 * time.Second):
 		suite.Fail("timed out waiting for routed message")
 	}
+
+	// Cancel the consumer to avoid server-side resource leaks.
+	err = suite.ch.Cancel(consumerTag, false)
+	suite.Require().NoError(err, "should cancel consumer")
 }
 
 func TestRabbitMQIntegrationSuite(t *testing.T) {
