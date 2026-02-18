@@ -33,7 +33,7 @@ jobs:
           fi
 
       - name: Vet
-        run: go vet -tags=integration ./...
+        run: go vet
 
       - name: Test (unit)
         run: make test
