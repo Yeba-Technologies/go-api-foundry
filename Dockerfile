@@ -32,10 +32,8 @@ COPY go.mod go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod \
     go mod download
 
-# Copy entire source tree (subdirs included)
 COPY . .
 
-# Build the server binary from cmd/server
 ARG VERSION=dev
 ARG COMMIT=unknown
 ARG BUILD_TIME=unknown
@@ -44,9 +42,9 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     CGO_ENABLED=0 GOOS=linux go build \
     -trimpath \
     -ldflags="-s -w \
-      -X github.com/Yeba-Technologies/go-api-foundry/internal/version.Version=${VERSION} \
-      -X github.com/Yeba-Technologies/go-api-foundry/internal/version.Commit=${COMMIT} \
-      -X github.com/Yeba-Technologies/go-api-foundry/internal/version.BuildTime=${BUILD_TIME}" \
+    -X github.com/Yeba-Technologies/go-api-foundry/internal/version.Version=${VERSION} \
+    -X github.com/Yeba-Technologies/go-api-foundry/internal/version.Commit=${COMMIT} \
+    -X github.com/Yeba-Technologies/go-api-foundry/internal/version.BuildTime=${BUILD_TIME}" \
     -o /go-api-foundry \
     ./cmd/server
 
@@ -55,7 +53,6 @@ FROM golang:${GO_VERSION}-alpine AS run-test-stage
 RUN apk add --no-cache ca-certificates
 WORKDIR /app
 
-# Reuse mod cache from build
 COPY --from=build-stage /go/pkg/mod /go/pkg/mod
 COPY go.mod go.sum ./
 COPY . .
@@ -78,7 +75,7 @@ ENV APP_ENV=docker
 EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD ["/go-api-foundry", "--health"]
+    CMD ["/go-api-foundry", "--health"]
 
 USER 65532:65532
 

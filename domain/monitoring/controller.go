@@ -17,11 +17,11 @@ type Cache interface {
 
 type HealthStatus struct {
 	Version      version.Info `json:"version"`
-	Database     int          `json:"database"`      // 1 = healthy, 0 = unhealthy
-	Cache        int          `json:"cache"`         // 1 = healthy, 0 = unhealthy/not configured
-	MessageQueue int          `json:"message_queue"` // 1 = healthy, 0 = not implemented
-	Storage      int          `json:"storage"`       // 1 = healthy, 0 = not implemented
-	Uptime       int          `json:"uptime"`        // uptime in seconds
+	Database     int          `json:"database"`
+	Cache        int          `json:"cache"`
+	MessageQueue int          `json:"message_queue"`
+	Storage      int          `json:"storage"`
+	Uptime       int          `json:"uptime"`
 }
 
 type MonitoringController struct {
@@ -66,14 +66,13 @@ func NewMonitoringController(db *gorm.DB, logger *log.Logger, cache Cache) *rout
 }
 
 func createMonitoringRateLimiter(routerService *router.RouterService) ratelimit.RateLimiter {
-
-	const monitoringRequestsPerMinute = 10 // More restrictive than default 100
+	const monitoringRequestsPerMinute = 10
 
 	config := &ratelimit.RateLimitConfig{
 		Requests: monitoringRequestsPerMinute,
-		Window:   time.Minute, // 1 minute window
-		Redis:    nil,         // For now, use in-memory (could be enhanced to use Redis)
-		Logger:   nil,         // Logger not needed for in-memory limiter
+		Window:   time.Minute,
+		Redis:    nil,
+		Logger:   nil,
 	}
 
 	return ratelimit.NewRateLimiter(config)
@@ -124,8 +123,8 @@ func (ctrl *MonitoringController) performHealthChecks(ctx context.Context, logge
 
 	checkCacheConnectivity(ctx, ctrl, &status, logger)
 
-	status.MessageQueue = 0 // Not implemented
-	status.Storage = 0      // Not implemented
+	status.MessageQueue = 0
+	status.Storage = 0
 
 	logger.Info("Message queue and storage health checks not implemented")
 
@@ -142,7 +141,7 @@ func checkCacheConnectivity(ctx context.Context, ctrl *MonitoringController, sta
 			logger.Error("Cache health check failed")
 		}
 	} else {
-		status.Cache = 0 // Cache not configured
+		status.Cache = 0
 		logger.Info("Cache not configured, cache health check skipped")
 	}
 }
@@ -163,11 +162,9 @@ func (ctrl *MonitoringController) checkDatabase(ctx context.Context) bool {
 		return false
 	}
 
-	// Ping the database
 	return sqlDB.PingContext(ctx) == nil
 }
 
 func (ctrl *MonitoringController) checkCache(ctx context.Context) bool {
-	// Ping the cache
 	return ctrl.cache.Ping(ctx) == nil
 }

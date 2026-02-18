@@ -12,17 +12,13 @@ import (
 )
 
 type Cache interface {
-	// Get returns ("", nil) when a key is not found.
 	Get(ctx context.Context, key string) (string, error)
-	// Set uses ttl=0 for no expiry.
 	Set(ctx context.Context, key string, value string, ttl time.Duration) error
 	Delete(ctx context.Context, key string) error
 	Ping(ctx context.Context) error
 	Close() error
 }
 
-// RedisClientProvider is an optional interface for caches that expose the underlying Redis client.
-// This is useful for advanced operations like rate limiting with Lua scripts.
 type RedisClientProvider interface {
 	GetClient() *redis.Client
 }
@@ -55,7 +51,7 @@ func (cc *CacheConfig) NewCache(logger *log.Logger) (Cache, error) {
 		Host:     cc.Host,
 		Port:     cc.Port,
 		Password: cc.Password,
-		DB:       0, // Always use DB 0 for cache
+		DB:       0,
 	}
 
 	cache, err := pkgredis.NewRedisCache(cfg)
@@ -77,7 +73,6 @@ func (cc *CacheConfig) NewCacheOrNil(logger *log.Logger) Cache {
 	cache, err := cc.NewCache(logger)
 
 	if err != nil {
-		// Log error but don't fail - allow fallback to in-memory
 		logger.Error("Failed to create Cache (Redis)", "error", err)
 		return nil
 	}
