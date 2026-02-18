@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/go-connections/nat"
 	"github.com/testcontainers/testcontainers-go"
 	tclocalstack "github.com/testcontainers/testcontainers-go/modules/localstack"
 	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
@@ -120,7 +121,7 @@ func StartRedis(ctx context.Context, t *testing.T) *RedisContainer {
 		t.Fatalf("failed to get redis host: %v", err)
 	}
 
-	mappedPort, err := redisContainer.MappedPort(ctx, "6379")
+	mappedPort, err := redisContainer.MappedPort(ctx, nat.Port("6379/tcp"))
 	if err != nil {
 		t.Fatalf("failed to get redis port: %v", err)
 	}
@@ -172,7 +173,7 @@ func StartLocalStack(ctx context.Context, t *testing.T) *LocalStackContainer {
 		t.Fatalf("failed to get localstack host: %v", err)
 	}
 
-	mappedPort, err := lsContainer.MappedPort(ctx, "4566")
+	mappedPort, err := lsContainer.MappedPort(ctx, nat.Port("4566/tcp"))
 	if err != nil {
 		t.Fatalf("failed to get localstack port: %v", err)
 	}
@@ -222,7 +223,7 @@ func StartRabbitMQ(ctx context.Context, t *testing.T) *RabbitMQContainer {
 		t.Fatalf("failed to get rabbitmq host: %v", err)
 	}
 
-	mappedPort, err := rmqContainer.MappedPort(ctx, "5672")
+	mappedPort, err := rmqContainer.MappedPort(ctx, nat.Port("5672/tcp"))
 	if err != nil {
 		t.Fatalf("failed to get rabbitmq amqp port: %v", err)
 	}
