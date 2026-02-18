@@ -107,41 +107,19 @@ func GetErrorType(err error) string {
 	return ErrorTypeUnknown
 }
 
-func DeduceErrorTypeFromErrorString(err error) string {
-	if err == nil {
-		return ""
-	}
-
-	errMsg := err.Error()
-	switch {
-	case errMsg == "":
-		return ""
-	case strings.Contains(strings.ToLower(errMsg), strings.ToLower("not found")):
-		return ErrorTypeNotFound
-	case strings.Contains(strings.ToLower(errMsg), strings.ToLower("unauthorized")):
-		return ErrorTypeUnauthorized
-	case strings.Contains(strings.ToLower(errMsg), strings.ToLower("forbidden")):
-		return ErrorTypeForbidden
-	case strings.Contains(strings.ToLower(errMsg), strings.ToLower("conflict")):
-		return ErrorTypeConflict
-	case strings.Contains(strings.ToLower(errMsg), strings.ToLower("database")):
-		return ErrorTypeDatabaseError
-	case strings.Contains(strings.ToLower(errMsg), strings.ToLower("invalid request")):
-		return ErrorTypeInvalidRequest
-	case strings.Contains(strings.ToLower(errMsg), strings.ToLower("no content")):
-		return ErrorTypeNoContent
-	}
-
-	return ErrorTypeUnknown
-}
-
 func IsDuplicateKeyError(err error) bool {
 	if err == nil {
 		return false
 	}
-	errMsg := err.Error()
-	return DeduceErrorTypeFromErrorString(err) == ErrorTypeConflict ||
-		strings.Contains(strings.ToLower(errMsg), strings.ToLower("duplicate")) ||
-		strings.Contains(strings.ToLower(errMsg), strings.ToLower("unique constraint")) ||
-		strings.Contains(strings.ToLower(errMsg), strings.ToLower("UNIQUE constraint failed"))
+
+	var appErr *AppError
+	if errors.As(err, &appErr) {
+		return appErr.Type == ErrorTypeConflict
+	}
+
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "duplicate") ||
+		strings.Contains(msg, "unique constraint") ||
+		strings.Contains(msg, "unique_violation") ||
+		strings.Contains(msg, "duplicate key value")
 }
