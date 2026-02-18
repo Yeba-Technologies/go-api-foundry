@@ -3,6 +3,7 @@ package router
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/Yeba-Technologies/go-api-foundry/internal/log"
 )
@@ -102,4 +103,24 @@ func ParseIDParam(ctx *RequestContext, paramName string) (uint, *ServiceResult) 
 	}
 
 	return uint(id), nil
+}
+
+func parseTrustedProxies(raw string) []string {
+	s := strings.TrimSpace(raw)
+	if s == "" {
+		return nil
+	}
+	if s == "*" {
+		return []string{"0.0.0.0/0", "::/0"}
+	}
+	var proxies []string
+	for _, p := range strings.Split(s, ",") {
+		if p = strings.TrimSpace(p); p != "" {
+			proxies = append(proxies, p)
+		}
+	}
+	if len(proxies) == 0 {
+		return nil
+	}
+	return proxies
 }

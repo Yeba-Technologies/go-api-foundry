@@ -6,186 +6,135 @@ import (
 	"strings"
 
 	"github.com/Yeba-Technologies/go-api-foundry/pkg/ratelimit"
+	"github.com/gin-gonic/gin"
 )
 
 func normalizePath(controller *RESTController, relativePath string) string {
-	var path string = controller.mountPoint
-
+	path := controller.mountPoint
 	if relativePath != "" {
 		path = path + "/" + relativePath
 	}
-
 	if path[0] != '/' {
 		path = "/" + path
 	}
-
 	if len(path) > 1 && path[len(path)-1] == '/' {
 		path = path[:len(path)-1]
 	}
-
 	return strings.ReplaceAll(path, "//", "/")
 }
 
-func (routerService *RouterService) keyForPathAndMethod(path, method string) string {
-	return fmt.Sprintf("%s-%s", method, path)
+func (rs *RouterService) routeKey(path, method string) string {
+	return method + "-" + path
 }
 
-func (controller *RESTController) bindHandlerToController(routerService *RouterService, path, method string) {
-	key := routerService.keyForPathAndMethod(path, method)
-	otherController, foundPrevious := routerService.handlerToControllerMap[key]
-
-	if foundPrevious {
-		panic(fmt.Sprintf("A handler is already registered for path '%s' by a different controller '%s'", path, otherController.name))
+func (ctrl *RESTController) bindToRouter(rs *RouterService, path, method string) {
+	key := rs.routeKey(path, method)
+	if existing, found := rs.handlerToControllerMap[key]; found {
+		panic(fmt.Sprintf("handler already registered for '%s' by controller '%s'", path, existing.name))
 	}
-
-	routerService.handlerToControllerMap[key] = controller
+	rs.handlerToControllerMap[key] = ctrl
 }
 
-func (routerService *RouterService) bindOverrideRateLimiter(path string, limiter ratelimit.RateLimiter) {
+func (rs *RouterService) registerRateLimitOverride(path string, limiter ratelimit.RateLimiter) {
 	if limiter == nil {
 		return
 	}
-
-	_, foundPrevious := routerService.rateLimitOverrides[path]
-	if foundPrevious {
-		panic(fmt.Sprintf("A rate limiter is already registered for path '%s'", path))
+	if _, exists := rs.rateLimitOverrides[path]; exists {
+		panic(fmt.Sprintf("rate limiter already registered for '%s'", path))
 	}
-
-	routerService.rateLimitOverrides[path] = limiter
+	rs.rateLimitOverrides[path] = limiter
 }
 
-func (routerService *RouterService) bindHandlerRateLimiter(path, method string, limiter ratelimit.RateLimiter) {
-	key := routerService.keyForPathAndMethod(path, method)
-	routerService.bindOverrideRateLimiter(key, limiter)
-}
-
-func createHandler(handler HandlerFunction) MiddlewareFunc {
+func wrapHandler(handler HandlerFunction) MiddlewareFunc {
 	return func(c *RequestContext) {
 		result := handler(c)
-
 		if result == nil {
-			c.JSON(http.StatusInternalServerError, InternalServerErrorResult("A handler returned an undefined result. This typically indicates a bug in a handler's implementation.").ToJSON())
+			c.JSON(http.StatusInternalServerError, InternalServerErrorResult("handler returned nil result").ToJSON())
 			return
 		}
-
 		c.JSON(result.StatusCode, result.ToJSON())
 	}
 }
 
-func NewRESTController(name, mountPoint string, prepare func(*RouterService, *RESTController)) *RESTController {
-	mountPoint = strings.ReplaceAll("/"+mountPoint, "//", "/")
+func (rs *RouterService) addHandler(
+	method string,
+	controller *RESTController,
+	limiter ratelimit.RateLimiter,
+	path string,
+	handler HandlerFunction,
+	middlewares ...MiddlewareFunc,
+) {
+	controller.handlerCount++
+	route := normalizePath(controller, path)
+	controller.bindToRouter(rs, route, method)
+	rs.registerRateLimitOverride(rs.routeKey(route, method), limiter)
 
+	handlers := append(middlewares, wrapHandler(handler))
+
+	var register func(string, ...gin.HandlerFunc) gin.IRoutes
+	switch method {
+	case http.MethodGet:
+		register = rs.engine.GET
+	case http.MethodPost:
+		register = rs.engine.POST
+	case http.MethodPut:
+		register = rs.engine.PUT
+	case http.MethodDelete:
+		register = rs.engine.DELETE
+	case http.MethodPatch:
+		register = rs.engine.PATCH
+	case http.MethodHead:
+		register = rs.engine.HEAD
+	default:
+		panic(fmt.Sprintf("unsupported HTTP method: %s", method))
+	}
+
+	register(route, handlers...)
+	rs.logger.Debug("Handler registered", "method", method, "path", route)
+}
+
+func NewRESTController(name, mountPoint string, prepare func(*RouterService, *RESTController)) *RESTController {
 	return &RESTController{
 		name:       name,
-		mountPoint: mountPoint,
-		version:    "",
+		mountPoint: strings.ReplaceAll("/"+mountPoint, "//", "/"),
 		prepare:    prepare,
 	}
 }
 
 func NewVersionedRESTController(name, version, mountPoint string, prepare func(*RouterService, *RESTController)) *RESTController {
-	// Prefixing the version to the mount point at controller creation clarifies routing and leaves no room for ambiguity.
-	finalPath := strings.ReplaceAll("/"+version+"/"+mountPoint, "//", "/")
-
 	return &RESTController{
 		name:       name,
-		mountPoint: finalPath,
+		mountPoint: strings.ReplaceAll("/"+version+"/"+mountPoint, "//", "/"),
 		version:    version,
 		prepare:    prepare,
 	}
 }
 
-func (controller *RESTController) RateLimitWith(routerService *RouterService, limiter ratelimit.RateLimiter) *RESTController {
-	routerService.bindOverrideRateLimiter(controller.mountPoint, limiter)
-	return controller
+func (ctrl *RESTController) RateLimitWith(rs *RouterService, limiter ratelimit.RateLimiter) *RESTController {
+	rs.registerRateLimitOverride(ctrl.mountPoint, limiter)
+	return ctrl
 }
 
-func (routerService *RouterService) AddPostHandler(
-	controller *RESTController,
-	limiter ratelimit.RateLimiter,
-	path string,
-	handler HandlerFunction,
-	middlewares ...MiddlewareFunc,
-) {
-	controller.handlerCount++
-	mountPoint := normalizePath(controller, path)
-	controller.bindHandlerToController(routerService, mountPoint, "POST")
-	routerService.bindHandlerRateLimiter(mountPoint, "POST", limiter)
-	routerService.engine.POST(mountPoint, append(middlewares, createHandler(handler))...)
-	routerService.logger.Debug("Handler registered", "method", "POST", "path", mountPoint)
+func (rs *RouterService) AddPostHandler(ctrl *RESTController, limiter ratelimit.RateLimiter, path string, handler HandlerFunction, mw ...MiddlewareFunc) {
+	rs.addHandler(http.MethodPost, ctrl, limiter, path, handler, mw...)
 }
 
-func (routerService *RouterService) AddGetHandler(
-	controller *RESTController,
-	limiter ratelimit.RateLimiter,
-	path string,
-	handler HandlerFunction,
-	middlewares ...MiddlewareFunc,
-) {
-	controller.handlerCount++
-	mountPoint := normalizePath(controller, path)
-	controller.bindHandlerToController(routerService, mountPoint, "GET")
-	routerService.bindHandlerRateLimiter(mountPoint, "GET", limiter)
-	routerService.engine.GET(mountPoint, append(middlewares, createHandler(handler))...)
-	routerService.logger.Debug("Handler registered", "method", "GET", "path", mountPoint)
+func (rs *RouterService) AddGetHandler(ctrl *RESTController, limiter ratelimit.RateLimiter, path string, handler HandlerFunction, mw ...MiddlewareFunc) {
+	rs.addHandler(http.MethodGet, ctrl, limiter, path, handler, mw...)
 }
 
-func (routerService *RouterService) AddPutHandler(
-	controller *RESTController,
-	limiter ratelimit.RateLimiter,
-	path string,
-	handler HandlerFunction,
-	middlewares ...MiddlewareFunc,
-) {
-	controller.handlerCount++
-	mountPoint := normalizePath(controller, path)
-	controller.bindHandlerToController(routerService, mountPoint, "PUT")
-	routerService.bindHandlerRateLimiter(mountPoint, "PUT", limiter)
-	routerService.engine.PUT(mountPoint, append(middlewares, createHandler(handler))...)
-	routerService.logger.Debug("Handler registered", "method", "PUT", "path", mountPoint)
+func (rs *RouterService) AddPutHandler(ctrl *RESTController, limiter ratelimit.RateLimiter, path string, handler HandlerFunction, mw ...MiddlewareFunc) {
+	rs.addHandler(http.MethodPut, ctrl, limiter, path, handler, mw...)
 }
 
-func (routerService *RouterService) AddDeleteHandler(
-	controller *RESTController,
-	limiter ratelimit.RateLimiter,
-	path string,
-	handler HandlerFunction,
-	middlewares ...MiddlewareFunc,
-) {
-	controller.handlerCount++
-	mountPoint := normalizePath(controller, path)
-	controller.bindHandlerToController(routerService, mountPoint, "DELETE")
-	routerService.bindHandlerRateLimiter(mountPoint, "DELETE", limiter)
-	routerService.engine.DELETE(mountPoint, append(middlewares, createHandler(handler))...)
-	routerService.logger.Debug("Handler registered", "method", "DELETE", "path", mountPoint)
+func (rs *RouterService) AddDeleteHandler(ctrl *RESTController, limiter ratelimit.RateLimiter, path string, handler HandlerFunction, mw ...MiddlewareFunc) {
+	rs.addHandler(http.MethodDelete, ctrl, limiter, path, handler, mw...)
 }
 
-func (routerService *RouterService) AddPatchHandler(
-	controller *RESTController,
-	limiter ratelimit.RateLimiter,
-	path string,
-	handler HandlerFunction,
-	middlewares ...MiddlewareFunc,
-) {
-	controller.handlerCount++
-	mountPoint := normalizePath(controller, path)
-	controller.bindHandlerToController(routerService, mountPoint, "PATCH")
-	routerService.bindHandlerRateLimiter(mountPoint, "PATCH", limiter)
-	routerService.engine.PATCH(mountPoint, append(middlewares, createHandler(handler))...)
-	routerService.logger.Debug("Handler registered", "method", "PATCH", "path", mountPoint)
+func (rs *RouterService) AddPatchHandler(ctrl *RESTController, limiter ratelimit.RateLimiter, path string, handler HandlerFunction, mw ...MiddlewareFunc) {
+	rs.addHandler(http.MethodPatch, ctrl, limiter, path, handler, mw...)
 }
 
-func (routerService *RouterService) AddHeadHandler(
-	controller *RESTController,
-	limiter ratelimit.RateLimiter,
-	path string,
-	handler HandlerFunction,
-	middlewares ...MiddlewareFunc,
-) {
-	controller.handlerCount++
-	mountPoint := normalizePath(controller, path)
-	controller.bindHandlerToController(routerService, mountPoint, "HEAD")
-	routerService.bindHandlerRateLimiter(mountPoint, "HEAD", limiter)
-	routerService.engine.HEAD(mountPoint, append(middlewares, createHandler(handler))...)
-	routerService.logger.Debug("Handler registered", "method", "HEAD", "path", mountPoint)
+func (rs *RouterService) AddHeadHandler(ctrl *RESTController, limiter ratelimit.RateLimiter, path string, handler HandlerFunction, mw ...MiddlewareFunc) {
+	rs.addHandler(http.MethodHead, ctrl, limiter, path, handler, mw...)
 }
