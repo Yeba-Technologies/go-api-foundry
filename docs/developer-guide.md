@@ -12,7 +12,7 @@ This repository is a Go API starter template built around:
 
 ### Prerequisites
 
-- Go 1.25+
+- Go 1.26+
 - (Optional) Air for hot reload (already baked into the dev Docker stage)
 - Docker + Docker Compose (recommended for running Postgres/Redis locally)
 
