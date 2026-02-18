@@ -225,7 +225,7 @@ func StartRabbitMQ(ctx context.Context, t *testing.T) *RabbitMQContainer {
 		t.Fatalf("failed to get rabbitmq host: %v", err)
 	}
 
-	mappedPort, err := rmqContainer.MappedPort(ctx, "5672")
+	mappedPort, err := rmqContainer.MappedPort(ctx, "5672/tcp")
 	if err != nil {
 		t.Fatalf("failed to get rabbitmq amqp port: %v", err)
 	}
