@@ -47,6 +47,7 @@ func TestCORS_OriginAllowed_SetsHeaders(t *testing.T) {
 	assert.Equal(t, "true", w.Header().Get("Access-Control-Allow-Credentials"))
 	assert.NotEmpty(t, w.Header().Get("Access-Control-Allow-Methods"))
 	assert.NotEmpty(t, w.Header().Get("Access-Control-Allow-Headers"))
+	assert.Contains(t, w.Header().Get("Access-Control-Expose-Headers"), "X-Correlation-ID")
 }
 
 func TestCORS_OriginNotAllowed_NoHeaders(t *testing.T) {
