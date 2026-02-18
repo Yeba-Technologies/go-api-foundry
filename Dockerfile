@@ -61,16 +61,17 @@ FROM scratch AS production-stage
 
 ARG CA_CERT_PATH=/etc/ssl/certs/ca-certificates.crt
 
-# Copy the statically built binary and CA certs from build stage
 COPY --from=build-stage /go-api-foundry /go-api-foundry
 COPY --from=build-stage ${CA_CERT_PATH} /etc/ssl/certs/
-
 
 ENV GIN_MODE=release
 ENV APP_PORT=8080
 ENV APP_ENV=docker
 
 EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD ["/go-api-foundry", "--health"]
 
 USER 65532:65532
 

@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"strings"
@@ -14,18 +16,20 @@ import (
 )
 
 func main() {
-	logger := log.NewLoggerWithJSONOutput()
-
-	logger.Info("V2 Backend Server initialized ✅")
-
 	autoMigrate := false
 
 	for _, arg := range os.Args[1:] {
-		if strings.ToLower(arg) == "--auto-migrate" || strings.ToLower(arg) == "-m" {
+		switch strings.ToLower(arg) {
+		case "--health", "-health":
+			os.Exit(runHealthCheck())
+		case "--auto-migrate", "-m":
 			autoMigrate = true
-			break
 		}
 	}
+
+	logger := log.NewLoggerWithJSONOutput()
+
+	logger.Info("V2 Backend Server initialized ✅")
 
 	appConfig, err := config.LoadApplicationConfiguration(logger, autoMigrate)
 	if err != nil {
@@ -65,4 +69,25 @@ func main() {
 
 		logger.Info("Graceful shutdown completed")
 	}
+}
+
+func runHealthCheck() int {
+	port := os.Getenv("APP_PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	client := &http.Client{Timeout: 3 * time.Second}
+	resp, err := client.Get(fmt.Sprintf("http://localhost:%s/health", port))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "health check failed: %v\n", err)
+		return 1
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusOK {
+		return 0
+	}
+	fmt.Fprintf(os.Stderr, "health check returned status %d\n", resp.StatusCode)
+	return 1
 }
