@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"reflect"
 	"time"
 
 	"github.com/Yeba-Technologies/go-api-foundry/internal/log"
@@ -15,7 +16,9 @@ import (
 	"github.com/Yeba-Technologies/go-api-foundry/pkg/ratelimit"
 	"github.com/Yeba-Technologies/go-api-foundry/pkg/utils"
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
 	"github.com/go-redis/redis/v8"
+	"github.com/go-playground/validator/v10"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 )
 
@@ -70,6 +73,22 @@ func CreateRouterService(logger *log.Logger, cache Cache, routerConfig *RouterCo
 
 	ginRouter := gin.New()
 	ginRouter.Use(gin.Recovery())
+
+	// Register custom validation tags used in request DTOs.
+	// Gin uses go-playground/validator and by default reads tags from `binding:"..."`.
+	// Unknown tags cause a panic during validation.
+	if v, ok := binding.Validator.Engine().(*validator.Validate); ok && v != nil {
+		// "trim" is used to ensure values are already whitespace-trimmed.
+		_ = v.RegisterValidation("trim", func(fl validator.FieldLevel) bool {
+			field := fl.Field()
+			if field.Kind() != reflect.String {
+				return true
+			}
+
+			value := field.String()
+			return value == strings.TrimSpace(value)
+		})
+	}
 
 	if utils.IsTracingEnabled() {
 		serviceName := utils.OTelServiceName()

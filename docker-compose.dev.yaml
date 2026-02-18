@@ -81,7 +81,7 @@ services:
 ### Localstack for AWS Queue Service Simulation
   localstack:
     container_name: localstack
-    image: localstack/localstack:latest
+    image: localstack/localstack:4.13
     ports:
       - "${AWS_SQS_LOCAL_GATEWAY_PORT}:${AWS_SQS_LOCAL_GATEWAY_PORT}"
       - "${AWS_SQS_EXTERNAL_GATEWAY_PORT_RANGE_START}-${AWS_SQS_EXTERNAL_GATEWAY_PORT_RANGE_END}:${AWS_SQS_EXTERNAL_GATEWAY_PORT_RANGE_START}-${AWS_SQS_EXTERNAL_GATEWAY_PORT_RANGE_END}"

@@ -33,10 +33,10 @@ jobs:
           fi
 
       - name: Vet
-        run: go vet ./...
+        run: go vet -tags=integration ./...
 
-      - name: Test
-        run: go test ./...
+      - name: Test (unit)
+        run: make test
 
-      - name: Race
-        run: go test -race ./...
+      - name: Test (CI)
+        run: make test-ci

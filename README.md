@@ -165,7 +165,7 @@ HSTS:
 
 AI was utilized as a critical friend, seeking feedback on performance metrics and critical reviews of my implementation to identify potential bottlenecks. The use of these models in no way completely replaces the author's imagination and creativity in crafting this solution; rather, they enhanced the author's ability to proactively spot issues and co-create responsibly. Below are the generative AI models consulted during the development of this solution and the prompt used:
 - GPT-5.2 
-- Claude Opus 4.5
+- Claude Opus 4.6
 
 ## AI Prompt Used
 
