@@ -31,7 +31,7 @@ vendor:
 
 # Unit tests only — fast, no external dependencies (DB, Redis, queues).
 test:
-	go test -count=1 ./...
+	go test -count=1 $$(go list ./... | grep -v '/integration')
 
 # Integration tests — requires Docker for testcontainers (Postgres, Redis).
 test-integration:
