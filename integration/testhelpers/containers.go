@@ -175,7 +175,7 @@ func StartLocalStack(ctx context.Context, t *testing.T) *LocalStackContainer {
 		t.Fatalf("failed to get localstack host: %v", err)
 	}
 
-	mappedPort, err := lsContainer.MappedPort(ctx, "4566")
+	mappedPort, err := lsContainer.MappedPort(ctx, "4566/tcp")
 	if err != nil {
 		t.Fatalf("failed to get localstack port: %v", err)
 	}
