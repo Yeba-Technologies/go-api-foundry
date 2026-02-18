@@ -20,7 +20,9 @@ type Logger interface {
 func generateUniqueID() string {
 	bytes := make([]byte, 8)
 
-	rand.Read(bytes)
+	if _, err := rand.Read(bytes); err != nil {
+		panic(fmt.Sprintf("crypto/rand.Read failed: %v", err))
+	}
 
 	return hex.EncodeToString(bytes)
 }

@@ -10,7 +10,6 @@ import (
 type MockWaitlistService struct {
 	ctrl     *gomock.Controller
 	recorder *MockWaitlistServiceMockRecorder
-	isgomock struct{}
 }
 
 type MockWaitlistServiceMockRecorder struct {
