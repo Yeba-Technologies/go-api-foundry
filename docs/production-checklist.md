@@ -118,7 +118,18 @@ Operational expectations:
 ## Docker / runtime
 
 - Production Docker image runs as non-root (UID/GID `65532:65532`).
+- The Dockerfile embeds version metadata via ldflags (`VERSION`, `COMMIT`, `BUILD_TIME` build args).
 - Keep `docker-compose.prod.yaml` aligned with your deployment platform, but avoid adding `--auto-migrate` to the production command.
+
+Health check:
+
+- The production image uses `HEALTHCHECK` with the binary's `--health` flag (`/go-api-foundry --health`), which performs an HTTP GET against `localhost:$APP_PORT/health` and exits 0/1.
+- No external tools (wget, curl) are needed in the scratch image.
+
+Version verification:
+
+- After deploying, verify the running version via `GET /version` or `GET /health` (includes version info).
+- The `--version` flag can be used locally to confirm the embedded build metadata.
 
 Runtime safeguards (platform-specific, but important):
 
@@ -128,19 +139,22 @@ Runtime safeguards (platform-specific, but important):
 
 ## CI and safety checks
 
-- Run at least:
-  - `go vet ./...`
-  - `go test ./...`
-  - `go test -race ./...`
+The CI pipeline (`.github/workflows/ci.yml`) runs:
 
-- If you modify dependencies, keep vendoring in sync:
+- `go vet ./...`
+- `golangci-lint` (comprehensive linting)
+- `govulncheck` (dependency vulnerability scanning)
+- `make test` (unit tests)
+- `make test-ci` (all tests with race detector + coverage)
+- Docker production image build (with version ldflags)
+
+If you modify dependencies, keep vendoring in sync:
 
 ```bash
 make vendor
 ```
 
-Recommended additions (if available in your CI platform):
+Recommended additions (if not already covered by your platform):
 
-- Dependency vulnerability scanning (Go modules)
 - Container image scanning
 - SAST/security linting appropriate for Go

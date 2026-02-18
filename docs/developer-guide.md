@@ -31,12 +31,21 @@ make dev-migrate      # hot reload + auto-migrate (development only)
 make run              # run server
 make run-with-migrate # run server + auto-migrate (development only)
 
+make build            # compile binary with version ldflags → bin/server
 make migrate          # run migrations explicitly via CLI
 
-make test             # go test ./...
+make test             # unit tests (no external deps)
+make test-integration # integration tests (requires Docker for testcontainers)
+make test-all         # unit + integration with race detector
+make test-ci          # all tests with race + coverage report
+
 make lint             # go vet ./...
 make format           # go fmt ./...
 make vendor           # go mod vendor
+make tidy             # go mod tidy
+
+make docker-build     # docker build -t go-api-foundry:dev .
+make docker-run       # docker run with .env
 ```
 
 ## Running
@@ -64,6 +73,72 @@ docker-compose -f docker-compose.prod.yaml up --build -d
 ```
 
 Server URL: `http://localhost:${APP_PORT:-8080}`
+
+## Project Structure
+
+```
+cmd/
+  server/          Server entrypoint (flags, signal handling, graceful shutdown)
+  cli/             CLI entrypoint (migrate, generate-domain)
+config/
+  router/          HTTP server lifecycle, route registration, response helpers
+    middleware/     Individual middleware files (security, cors, timeout, bodysize, logging, correlation)
+domain/
+  monitoring/      Health check, version, monitoring endpoints
+  waitlist/        Reference CRUD domain (onboarding example)
+internal/
+  log/             Structured logger + request logging middleware
+  models/          GORM model definitions
+  version/         Build-time version info (populated via ldflags)
+pkg/
+  circuitbreaker/  Circuit breaker pattern
+  errors/          Typed AppError system + HTTP status mapping
+  factory/         Base service factory
+  migrations/      SQL migration runner
+  ratelimit/       Rate limiter (in-memory + Redis strategies)
+  redis/           Redis client factory
+  retry/           Retry with exponential backoff
+  utils/           Env + tracing helpers
+migrations/        Versioned SQL migration files
+integration/       Integration tests (testcontainers)
+```
+
+## CLI Flags
+
+The server binary accepts the following flags:
+
+| Flag | Description |
+|---|---|
+| `--version`, `-v` | Print version, commit SHA, and build time, then exit |
+| `--health` | Run a health check against a running instance, then exit 0/1 |
+| `--auto-migrate`, `-m` | Run GORM AutoMigrate at startup (blocked in production) |
+
+Examples:
+
+```bash
+# Check which version is deployed
+./bin/server --version
+
+# Use as a Docker/compose health check
+./bin/server --health
+```
+
+## Build & Version Embedding
+
+`make build` compiles the server binary and embeds version metadata via ldflags:
+
+```bash
+make build                     # uses git commit + current timestamp
+VERSION=1.2.0 make build       # explicit version tag
+```
+
+The embedded values are surfaced at:
+
+- `GET /version` — returns `{version, commit, buildTime}`
+- `GET /health` — includes version info in the response
+- `--version` CLI flag
+
+The Dockerfile and CI workflow set these automatically from the git ref and SHA.
 
 ## Migrations
 
@@ -198,6 +273,16 @@ HSTS is only set when the request is effectively HTTPS (direct TLS or `X-Forward
   - unset/empty: enabled
   - `false`: disabled
 
+## Endpoints
+
+| Route | Description |
+|---|---|
+| `GET /` | Monitoring status |
+| `GET /health` | Health check (database, cache, version, uptime) |
+| `GET /version` | Build version info |
+| `GET /metrics` | Prometheus metrics (when enabled) |
+| `GET /v1/waitlist` | List waitlist entries (reference domain) |
+
 ## Rate Limiting
 
 Rate limiting is applied per client IP.
@@ -255,17 +340,41 @@ It shows the intended structure and conventions for:
 
 ## Testing
 
-Unit tests:
+Unit tests (no external dependencies):
 
 ```bash
 make test
 ```
 
-Integration tests (when supported by the repo):
+Integration tests (requires Docker for testcontainers):
 
 ```bash
-RUN_INTEGRATION_TESTS=true go test ./integration/... -v
+make test-integration
 ```
+
+All tests with race detector:
+
+```bash
+make test-all
+```
+
+CI tests with race detection and coverage:
+
+```bash
+make test-ci
+```
+
+## CI Pipeline
+
+The GitHub Actions workflow (`.github/workflows/ci.yml`) runs on every push and PR:
+
+1. Vendor verification
+2. `go vet`
+3. `golangci-lint`
+4. `govulncheck` (dependency vulnerability scanning)
+5. Unit tests
+6. CI tests (race detector + coverage)
+7. Docker production image build (with version ldflags)
 
 ## Dependency Management
 

@@ -4,7 +4,38 @@ This section summarizes the main design patterns used in this template and where
 
 ## Implemented Patterns
 
-### 1. Strategy Pattern - Rate Limiting
+### 1. Middleware Pattern - Composable HTTP Pipeline
+**Location:** `config/router/middleware/`
+
+Each cross-cutting concern is isolated into its own middleware file with a `New*Middleware()` constructor and a `Resolve*()` configuration function:
+
+| File | Concern |
+|---|---|
+| `security.go` | Security headers (X-Content-Type-Options, X-Frame-Options, Referrer-Policy, HSTS) |
+| `cors.go` | CORS policy (origin allowlist, methods, headers) |
+| `timeout.go` | Per-request context deadline |
+| `bodysize.go` | Request body size limit (HTTP 413 on overflow) |
+| `logging.go` | Structured request/response logging |
+| `correlation.go` | Correlation ID propagation (X-Correlation-ID) |
+
+**Benefits:**
+- Each middleware is independently testable and replaceable
+- Configuration is resolved once at startup via `Resolve*()` functions
+- Middleware ordering is explicit in the router setup
+
+**Usage:**
+```go
+engine.Use(
+    middleware.NewCorrelationMiddleware(),
+    middleware.NewSecurityMiddleware(middleware.ResolveSecurityConfig()),
+    middleware.NewCORSMiddleware(middleware.ResolveCORSConfig()),
+    middleware.NewTimeoutMiddleware(middleware.ResolveTimeoutConfig()),
+    middleware.NewBodySizeMiddleware(middleware.ResolveBodySizeConfig()),
+    middleware.NewLoggingMiddleware(logger),
+)
+```
+
+### 2. Strategy Pattern - Rate Limiting
 **Location:** `pkg/ratelimit/strategy.go`
 
 The Strategy Pattern eliminates conditional logic for different rate limiting implementations (in-memory vs Redis-based). The `RateLimiter` interface allows seamless switching between implementations without changing client code.
@@ -31,7 +62,7 @@ config := &ratelimit.RateLimitConfig{
 rateLimiter := ratelimit.NewRateLimiter(config)
 ```
 
-### 2. Factory Pattern - Domain-Specific Service Creation
+### 3. Factory Pattern - Domain-Specific Service Creation
 **Location:** `domain/*/factory.go` (e.g., `domain/waitlist/factory.go`, `domain/monitoring/factory.go`)
 
 The Factory Pattern is implemented per domain to create services and controllers, promoting Domain-Driven Design (DDD) principles by keeping component instantiation within bounded contexts.
@@ -54,7 +85,7 @@ monitoringFactory := monitoring.NewMonitoringControllerFactory(db, logger, redis
 controller := monitoringFactory.CreateController()
 ```
 
-### 3. Circuit Breaker Pattern - Fault Tolerance
+### 4. Circuit Breaker Pattern - Fault Tolerance
 **Location:** `pkg/circuitbreaker/circuitbreaker.go`
 
 The Circuit Breaker Pattern provides resilience against cascading failures by monitoring service health and preventing calls to failing services.
@@ -78,7 +109,7 @@ result, err := cb.Execute(func() (interface{}, error) {
 })
 ```
 
-### 4. Retry Pattern - Transient Failure Handling
+### 5. Retry Pattern - Transient Failure Handling
 **Location:** `pkg/retry/retry.go`
 
 The Retry Pattern handles transient failures with exponential backoff and configurable retry strategies.
@@ -105,10 +136,11 @@ result, err := retry.WithExponentialBackoff(retryConfig, func() error {
 ## Integration Points
 
 ### Router Service
-The router uses the Strategy Pattern for rate limiting:
+The router uses the Middleware Pattern for HTTP pipeline composition and the Strategy Pattern for rate limiting:
 
-- Environment-based configuration
-- Automatic fallback to in-memory if Redis is not configured or unreachable
+- Cross-cutting concerns are composed via individual middleware files
+- Environment-based configuration resolved at startup
+- Automatic fallback to in-memory rate limiting if Redis is not configured or unreachable
 
 ### Domain Layer
 The domain layer uses domain-specific Factory Patterns for component creation:

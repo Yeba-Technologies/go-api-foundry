@@ -47,7 +47,20 @@ With auto-migrate (development only):
 make run-with-migrate
 ```
 
-### 4) Run with Docker Compose
+### 4) Build a binary
+
+```bash
+make build
+```
+
+The binary embeds version metadata (git tag, commit SHA, build timestamp) via ldflags. Pass `VERSION` explicitly if needed:
+
+```bash
+VERSION=1.2.0 make build
+./bin/server --version
+```
+
+### 5) Run with Docker Compose
 
 Development (includes extra infra containers like LocalStack + RabbitMQ):
 
@@ -63,9 +76,19 @@ docker-compose -f docker-compose.prod.yaml up --build -d
 
 Server URL: `http://localhost:${APP_PORT:-8080}`
 
-## Health, Metrics, and Headers
+## CLI Flags
 
-- `GET /health` health check
+| Flag | Description |
+|---|---|
+| `--version`, `-v` | Print version, commit SHA, and build time, then exit |
+| `--health` | Run a health check against a running instance (`localhost:$APP_PORT/health`), then exit 0/1 |
+| `--auto-migrate`, `-m` | Run GORM AutoMigrate at startup (blocked when `APP_ENV` is production-like) |
+
+## Endpoints, Metrics, and Headers
+
+- `GET /` monitoring status
+- `GET /health` health check (database, cache, version, uptime)
+- `GET /version` build version info (version, commit, build time)
 - `GET /metrics` Prometheus metrics (enabled by default; set `METRICS_ENABLED=false` to disable)
 - Correlation ID: request/response header `X-Correlation-ID`
 
@@ -160,6 +183,18 @@ HSTS:
 - `HSTS_ENABLED=true|false` overrides
 - `HSTS_MAX_AGE` (seconds, default `31536000`)
 - `HSTS_INCLUDE_SUBDOMAINS=true|false` (default `true`)
+
+## CI
+
+The GitHub Actions workflow ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs:
+
+1. **Vendor verify** — ensures `vendor/modules.txt` is in sync
+2. **go vet** — static analysis
+3. **golangci-lint** — comprehensive linting
+4. **govulncheck** — dependency vulnerability scanning
+5. **Unit tests** — `make test`
+6. **CI tests** — `make test-ci` (race detector + coverage)
+7. **Docker build** — builds the production image with version ldflags
 
 ## Acknowledgements
 
