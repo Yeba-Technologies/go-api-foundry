@@ -59,6 +59,7 @@ func GetLoggerInstanceFromContext(ctx context.Context, fallbackLogger *Logger) *
 		if fallbackLogger != nil {
 			return fallbackLogger.WithCorrelationID(ctx)
 		}
+
 		return NewLoggerWithJSONOutput().WithCorrelationID(ctx)
 	}
 

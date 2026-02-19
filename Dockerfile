@@ -15,6 +15,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 
 COPY . .
 
+ENV GOFLAGS=-mod=mod 
 ENV GIN_MODE=debug
 ENV APP_PORT=8080
 
@@ -33,6 +34,8 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     go mod download
 
 COPY . .
+
+ENV GOFLAGS=-mod=mod
 
 ARG VERSION=dev
 ARG COMMIT=unknown
@@ -56,6 +59,8 @@ WORKDIR /app
 COPY --from=build-stage /go/pkg/mod /go/pkg/mod
 COPY go.mod go.sum ./
 COPY . .
+
+ENV GOFLAGS=-mod=mod
 
 # Run unit tests only (no integration tag, no external deps needed).
 # Integration tests require Docker-in-Docker and are run separately in CI.
