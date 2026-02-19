@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"strings"
@@ -11,21 +13,28 @@ import (
 	"github.com/Yeba-Technologies/go-api-foundry/config"
 	"github.com/Yeba-Technologies/go-api-foundry/domain"
 	"github.com/Yeba-Technologies/go-api-foundry/internal/log"
+	"github.com/Yeba-Technologies/go-api-foundry/internal/version"
 )
 
 func main() {
-	logger := log.NewLoggerWithJSONOutput()
-
-	logger.Info("V2 Backend Server initialized ✅")
-
 	autoMigrate := false
 
 	for _, arg := range os.Args[1:] {
-		if strings.ToLower(arg) == "--auto-migrate" || strings.ToLower(arg) == "-m" {
+		switch strings.ToLower(arg) {
+		case "--health", "-health":
+			os.Exit(runHealthCheck())
+		case "--version", "-v":
+			v := version.Get()
+			fmt.Printf("%s (commit: %s, built: %s)\n", v.Version, v.Commit, v.BuildTime)
+			os.Exit(0)
+		case "--auto-migrate", "-m":
 			autoMigrate = true
-			break
 		}
 	}
+
+	logger := log.NewLoggerWithJSONOutput()
+
+	logger.Info("V2 Backend Server initialized ✅")
 
 	appConfig, err := config.LoadApplicationConfiguration(logger, autoMigrate)
 	if err != nil {
@@ -65,4 +74,25 @@ func main() {
 
 		logger.Info("Graceful shutdown completed")
 	}
+}
+
+func runHealthCheck() int {
+	port := os.Getenv("APP_PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	client := &http.Client{Timeout: 3 * time.Second}
+	resp, err := client.Get(fmt.Sprintf("http://localhost:%s/health", port))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "health check failed: %v\n", err)
+		return 1
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode == http.StatusOK {
+		return 0
+	}
+	fmt.Fprintf(os.Stderr, "health check returned status %d\n", resp.StatusCode)
+	return 1
 }

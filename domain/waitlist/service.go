@@ -10,19 +10,10 @@ import (
 )
 
 type WaitlistService interface {
-	// CreateEntry creates a new waitlist entry based on the provided request.
 	CreateEntry(ctx context.Context, req *CreateWaitlistEntryRequest) (*WaitlistEntryResponse, error)
-
-	// FindEntryByID retrieves a waitlist entry by its unique ID.
 	FindEntryByID(ctx context.Context, id uint) (*WaitlistEntryResponse, error)
-
-	// UpdateEntry updates an existing waitlist entry identified by ID with the provided data.
 	UpdateEntry(ctx context.Context, id uint, req *UpdateWaitlistEntryRequest) error
-
-	// GetAllEntries retrieves all waitlist entries.
 	GetAllEntries(ctx context.Context) ([]WaitlistEntryResponse, error)
-
-	// DeleteEntry removes a waitlist entry identified by its ID.
 	DeleteEntry(ctx context.Context, id uint) error
 }
 

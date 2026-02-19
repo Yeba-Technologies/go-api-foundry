@@ -3,6 +3,7 @@ package retry
 import (
 	"errors"
 	"math"
+	"math/rand/v2"
 	"strings"
 	"time"
 )
@@ -18,7 +19,6 @@ type Config struct {
 	Multiplier  float64
 }
 
-// DefaultConfig returns conservative defaults for backoff retries.
 func DefaultConfig() *Config {
 	return &Config{
 		MaxAttempts: 3,
@@ -28,12 +28,10 @@ func DefaultConfig() *Config {
 	}
 }
 
-// ExponentialBackoff retries with exponential delay between attempts.
 type ExponentialBackoff struct {
 	config *Config
 }
 
-// NewExponentialBackoff applies defaults when config is nil.
 func NewExponentialBackoff(config *Config) *ExponentialBackoff {
 	if config == nil {
 		config = DefaultConfig()
@@ -75,8 +73,8 @@ func (eb *ExponentialBackoff) calculateDelay(attempt int) time.Duration {
 	if delay > float64(eb.config.MaxDelay) {
 		delay = float64(eb.config.MaxDelay)
 	}
-
-	return time.Duration(delay)
+	jitter := delay * 0.5 * rand.Float64()
+	return time.Duration(delay + jitter)
 }
 
 func isRetryable(err error) bool {
@@ -102,12 +100,10 @@ func isRetryable(err error) bool {
 	return false
 }
 
-// FixedDelay retries with a constant delay between attempts.
 type FixedDelay struct {
 	config *Config
 }
 
-// NewFixedDelay applies defaults when config is nil.
 func NewFixedDelay(config *Config) *FixedDelay {
 	if config == nil {
 		config = DefaultConfig()
@@ -142,7 +138,6 @@ func (fd *FixedDelay) Execute(fn func() error) error {
 	}
 }
 
-// MaxRetriesExceededError indicates that all retry attempts were exhausted.
 type MaxRetriesExceededError struct {
 	LastError   error
 	MaxAttempts int
@@ -156,7 +151,6 @@ func (e *MaxRetriesExceededError) Unwrap() error {
 	return e.LastError
 }
 
-// IsMaxRetriesExceeded reports whether err is a MaxRetriesExceededError.
 func IsMaxRetriesExceeded(err error) bool {
 	var maxRetriesErr *MaxRetriesExceededError
 	return errors.As(err, &maxRetriesErr)

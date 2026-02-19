@@ -35,13 +35,13 @@ func NewWaitlistController(
 }
 
 func createWaitlistCreationRateLimiter(routerService *router.RouterService) ratelimit.RateLimiter {
-	const waitlistCreationRequestsPerMinute = 30 // More permissive than monitoring (10/min)
+	const waitlistCreationRequestsPerMinute = 30
 
 	config := &ratelimit.RateLimitConfig{
 		Requests: waitlistCreationRequestsPerMinute,
-		Window:   time.Minute, // 1 minute window
-		Redis:    nil,         // For now, use in-memory (could be enhanced to use Redis)
-		Logger:   nil,         // Logger not needed for in-memory limiter
+		Window:   time.Minute,
+		Redis:    nil,
+		Logger:   nil,
 	}
 
 	return ratelimit.NewRateLimiter(config)

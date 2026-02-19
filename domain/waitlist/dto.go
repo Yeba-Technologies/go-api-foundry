@@ -25,10 +25,6 @@ type WaitlistEntryResponse struct {
 	CreatedAt string `json:"created_at"`
 }
 
-// ========================================
-// Mappers
-// ========================================
-
 func ToWaitlistEntryModel(req *CreateWaitlistEntryRequest) *models.WaitlistEntry {
 	if req == nil {
 		return nil

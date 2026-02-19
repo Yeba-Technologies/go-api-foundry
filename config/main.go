@@ -75,7 +75,9 @@ func (ac *ApplicationConfig) Cleanup() {
 	}
 
 	if ac.Cache != nil {
-		CloseCache(ac.Cache, ac.Logger)
+		if err := CloseCache(ac.Cache, ac.Logger); err != nil {
+			ac.Logger.Error("failed to close cache", "error", err)
+		}
 	}
 
 	ac.Logger.Info("Application cleanup completed")

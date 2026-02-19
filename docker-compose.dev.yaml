@@ -24,7 +24,7 @@ services:
       - RABBITMQ_URL=amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:${RABBITMQ_PORT}/
       - AWS_SQS_ENDPOINT_URL=http://localstack:${AWS_SQS_LOCAL_GATEWAY_PORT}
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:${APP_PORT}/health || exit 1"]
+      test: ["CMD", "go", "run", "./cmd/server", "--health"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -32,7 +32,7 @@ services:
     networks:
       - v2-backend-network
     restart: unless-stopped
-    command: ["--", "--auto-migrate"]  # pass args through to the server
+    command: ["--", "--auto-migrate"]
 
 ## Cache Service
   redis:

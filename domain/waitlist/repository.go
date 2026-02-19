@@ -10,15 +10,10 @@ import (
 )
 
 type WaitlistRepository interface {
-	// CreateEntry persists a new waitlist entry to the database.
 	CreateEntry(ctx context.Context, entry *models.WaitlistEntry) (*models.WaitlistEntry, error)
-	// FindEntryByID retrieves a waitlist entry by its unique ID.
 	FindEntryByID(ctx context.Context, id uint) (*models.WaitlistEntry, error)
-	// UpdateEntry updates fields of a waitlist entry identified by its ID.
 	UpdateEntry(ctx context.Context, id uint, updates map[string]interface{}) error
-	// GetAllEntries returns all waitlist entries from the database.
 	GetAllEntries(ctx context.Context) ([]*models.WaitlistEntry, error)
-	// DeleteEntry removes a waitlist entry by its ID.
 	DeleteEntry(ctx context.Context, id uint) error
 }
 

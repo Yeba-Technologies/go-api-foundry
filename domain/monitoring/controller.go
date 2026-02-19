@@ -6,6 +6,7 @@ import (
 
 	"github.com/Yeba-Technologies/go-api-foundry/config/router"
 	"github.com/Yeba-Technologies/go-api-foundry/internal/log"
+	"github.com/Yeba-Technologies/go-api-foundry/internal/version"
 	"github.com/Yeba-Technologies/go-api-foundry/pkg/ratelimit"
 	"gorm.io/gorm"
 )
@@ -15,11 +16,12 @@ type Cache interface {
 }
 
 type HealthStatus struct {
-	Database     int `json:"database"`      // 1 = healthy, 0 = unhealthy
-	Cache        int `json:"cache"`         // 1 = healthy, 0 = unhealthy/not configured
-	MessageQueue int `json:"message_queue"` // 1 = healthy, 0 = not implemented
-	Storage      int `json:"storage"`       // 1 = healthy, 0 = not implemented
-	Uptime       int `json:"uptime"`        // uptime in seconds
+	Version      version.Info `json:"version"`
+	Database     int          `json:"database"`
+	Cache        int          `json:"cache"`
+	MessageQueue int          `json:"message_queue"`
+	Storage      int          `json:"storage"`
+	Uptime       int          `json:"uptime"`
 }
 
 type MonitoringController struct {
@@ -52,6 +54,10 @@ func NewMonitoringController(db *gorm.DB, logger *log.Logger, cache Cache) *rout
 				return ctrl.healthCheck(routerService, c)
 			})
 
+			routerService.AddGetHandler(controller, monitoringRateLimiter, "version", func(c *router.RequestContext) *router.ServiceResult {
+				return router.OKResult(version.Get(), "Version info")
+			})
+
 			routerService.AddGetHandler(controller, nil, "extras/greet", func(c *router.RequestContext) *router.ServiceResult {
 				return ctrl.greet(c)
 			})
@@ -60,14 +66,13 @@ func NewMonitoringController(db *gorm.DB, logger *log.Logger, cache Cache) *rout
 }
 
 func createMonitoringRateLimiter(routerService *router.RouterService) ratelimit.RateLimiter {
-
-	const monitoringRequestsPerMinute = 10 // More restrictive than default 100
+	const monitoringRequestsPerMinute = 10
 
 	config := &ratelimit.RateLimitConfig{
 		Requests: monitoringRequestsPerMinute,
-		Window:   time.Minute, // 1 minute window
-		Redis:    nil,         // For now, use in-memory (could be enhanced to use Redis)
-		Logger:   nil,         // Logger not needed for in-memory limiter
+		Window:   time.Minute,
+		Redis:    nil,
+		Logger:   nil,
 	}
 
 	return ratelimit.NewRateLimiter(config)
@@ -110,15 +115,16 @@ func (ctrl *MonitoringController) monitor(
 
 func (ctrl *MonitoringController) performHealthChecks(ctx context.Context, logger *log.Logger) HealthStatus {
 	status := HealthStatus{
-		Uptime: int(time.Since(ctrl.startTime).Seconds()),
+		Version: version.Get(),
+		Uptime:  int(time.Since(ctrl.startTime).Seconds()),
 	}
 
 	checkDatabaseConnectivity(ctx, ctrl, &status, logger)
 
 	checkCacheConnectivity(ctx, ctrl, &status, logger)
 
-	status.MessageQueue = 0 // Not implemented
-	status.Storage = 0      // Not implemented
+	status.MessageQueue = 0
+	status.Storage = 0
 
 	logger.Info("Message queue and storage health checks not implemented")
 
@@ -135,7 +141,7 @@ func checkCacheConnectivity(ctx context.Context, ctrl *MonitoringController, sta
 			logger.Error("Cache health check failed")
 		}
 	} else {
-		status.Cache = 0 // Cache not configured
+		status.Cache = 0
 		logger.Info("Cache not configured, cache health check skipped")
 	}
 }
@@ -156,11 +162,9 @@ func (ctrl *MonitoringController) checkDatabase(ctx context.Context) bool {
 		return false
 	}
 
-	// Ping the database
 	return sqlDB.PingContext(ctx) == nil
 }
 
 func (ctrl *MonitoringController) checkCache(ctx context.Context) bool {
-	// Ping the cache
 	return ctrl.cache.Ping(ctx) == nil
 }
